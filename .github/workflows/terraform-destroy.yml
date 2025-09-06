@@ -34,6 +34,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Set environment variables
+      id: set-env
+      run: |
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "LOCATION=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "resource-group=${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
+        
     - name: Azure Login
       uses: azure/login@v1
       with:
@@ -48,13 +56,6 @@ jobs:
         fi
         echo "SUCCESS: Destroy confirmation validated"
         
-    - name: Set environment variables
-      id: set-env
-      run: |
-        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
-        echo "resource-group=${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
-        
     - name: Set Terraform environment variables
       run: |
         echo "Setting Terraform environment variables..."
@@ -64,7 +65,7 @@ jobs:
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         echo "SUCCESS: Terraform environment variables set"
 
-  destroy:
+  init:
     runs-on: ubuntu-latest
     needs: validate
     environment: ${{ inputs.environment }}
@@ -93,11 +94,60 @@ jobs:
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         
+    - name: Terraform Init
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init
+        echo "SUCCESS: Terraform initialized successfully"
+
+    - name: Init summary
+      run: |
+        echo "## Terraform Init Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Terraform initialized successfully" >> $GITHUB_STEP_SUMMARY
+
+  destroy:
+    runs-on: ubuntu-latest
+    needs: [validate, init]
+    environment: ${{ inputs.environment }}
+    outputs:
+      resource_group: ${{ needs.validate.outputs.resource-group }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Set Terraform environment variables
+      run: |
+        echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
+        echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        
+    - name: Terraform Init
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init
+        echo "SUCCESS: Terraform initialized successfully"
+        
     - name: List resources to be destroyed
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         echo "## Resources to be destroyed:" >> $GITHUB_STEP_SUMMARY
-        terraform init
         terraform plan -destroy -out=destroy-plan
         terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
         echo "..." >> $GITHUB_STEP_SUMMARY
@@ -123,11 +173,21 @@ jobs:
           rm -f terraform.tfstate*
         fi
         echo "SUCCESS: Local state cleanup completed"
+        
+    - name: Destroy summary
+      run: |
+        echo "## Destroy Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Infrastructure destroyed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Note**: All infrastructure in the ${{ inputs.environment }} environment has been destroyed." >> $GITHUB_STEP_SUMMARY
 
   verify:
     runs-on: ubuntu-latest
-    needs: [validate, destroy]
-    if: always()
+    needs: destroy
+    environment: ${{ inputs.environment }}
     
     steps:
     - name: Checkout code
@@ -140,7 +200,8 @@ jobs:
         
     - name: Verify destruction
       run: |
-        RESOURCE_GROUP="${{ needs.validate.outputs.resource-group }}"
+        echo "## Destruction Verification" >> $GITHUB_STEP_SUMMARY
+        RESOURCE_GROUP="${{ needs.destroy.outputs.resource_group }}"
         echo "Verifying destruction of resource group: $RESOURCE_GROUP"
         
         # Check if resource group still exists
@@ -155,12 +216,9 @@ jobs:
         echo "## Remaining Resources (if any)" >> $GITHUB_STEP_SUMMARY
         az resource list --query "[?resourceGroup=='$RESOURCE_GROUP'].{Name:name, Type:type}" --output table >> $GITHUB_STEP_SUMMARY || echo "No remaining resources found" >> $GITHUB_STEP_SUMMARY
         
-    - name: Destroy summary
+    - name: Final summary
       run: |
-        echo "## Destroy Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## Terraform Destroy Summary" >> $GITHUB_STEP_SUMMARY
         echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Status: Infrastructure destroyed successfully" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Note**: All infrastructure in the ${{ inputs.environment }} environment has been destroyed." >> $GITHUB_STEP_SUMMARY
+        echo "- Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Infrastructure destroyed and verified" >> $GITHUB_STEP_SUMMARY
