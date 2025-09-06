@@ -164,7 +164,7 @@ jobs:
         OWNER="${{ inputs.owner }}"
         COST_CENTER="${{ inputs.cost_center }}"
         
-        cat > "$TFVARS_FILE" << EOF
+        cat > "$TFVARS_FILE" << 'EOF'
 # Environment Configuration for $ENV_NAME
 # Generated on $(date)
 
