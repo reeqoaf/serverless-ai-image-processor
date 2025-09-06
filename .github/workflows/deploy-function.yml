@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - staging
-          - prod
       function_app_name:
         description: 'Function App Name (leave empty for auto-detection)'
         required: false

@@ -15,7 +15,7 @@ subscription_id = "your-subscription-id-here"
 # Project name (used for resource naming)
 project_name = "ai-image-processor"
 
-# Environment name (dev, staging, prod)
+# Environment name (dev)
 environment = "dev"
 
 # Azure region for resources
@@ -31,7 +31,7 @@ storage_config = {
   
   # Replication type: LRS, GRS, RAGRS, ZRS
   # LRS = Locally Redundant Storage (cheapest)
-  # GRS = Geo-Redundant Storage (recommended for production)
+  # GRS = Geo-Redundant Storage (recommended for production workloads)
   replication_type = "LRS"
   
   # Enable blob versioning (increases storage costs)
@@ -94,14 +94,7 @@ tags = {
 # - CosmosDB: Serverless (pay per request)
 # - Storage: LRS (cheapest replication)
 
-# Staging Environment (Balanced)
-# - Computer Vision: S0 (standard tier)
-# - Functions: Consumption (pay per execution)
-# - CosmosDB: Serverless (pay per request)
-# - Storage: GRS (geo-redundant)
-
-# Production Environment (High Availability)
-# - Computer Vision: S1+ (higher tier)
-# - Functions: Premium (fixed cost, better performance)
-# - CosmosDB: Serverless (pay per request)
-# - Storage: GRS (geo-redundant)
+# Additional Environment Examples
+# =============================================================================
+# For future environments, you can create additional terraform.tfvars files
+# in the envs/ directory with different configurations as needed.

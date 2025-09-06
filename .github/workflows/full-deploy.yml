@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - staging
-          - prod
       deploy_infrastructure:
         description: 'Deploy infrastructure (Terraform)'
         required: false

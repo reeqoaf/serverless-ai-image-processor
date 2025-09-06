@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - staging
-          - prod
       action:
         description: 'Terraform action to perform'
         required: true

@@ -10,8 +10,6 @@ on:
         type: choice
         options:
           - dev
-          - staging
-          - prod
       confirm_destroy:
         description: 'Type "DESTROY_ALL" to confirm (case sensitive)'
         required: true

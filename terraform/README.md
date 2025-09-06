@@ -26,9 +26,7 @@ terraform destroy -var-file="envs/dev/terraform.tfvars"
 ## Configuration
 
 ### Environment Files
-- `envs/dev/terraform.tfvars` - Development (free tiers)
-- `envs/staging/terraform.tfvars` - Staging 
-- `envs/prod/terraform.tfvars` - Production
+- `envs/dev/terraform.tfvars` - Development (only supported environment)
 
 ### Key Variables
 ```hcl
@@ -43,8 +41,7 @@ subscription_id = "your-subscription-id"
 | Environment | Monthly Cost | Notes |
 |-------------|--------------|-------|
 | **Development** | $0-5 | Free tiers, minimal usage |
-| **Staging** | $20-50 | Standard tiers |
-| **Production** | $100-300 | Premium tiers, HA |
+| **Additional** | Variable | Based on configuration |
 
 ## Security
 
