@@ -66,11 +66,18 @@ jobs:
         RESOURCE_GROUP="${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg"
         echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_ENV
         
+    - name: Set Terraform environment variables
+      run: |
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        
     - name: Terraform Plan
       if: ${{ inputs.action == 'plan' || inputs.action == 'init-plan-apply' }}
       working-directory: ${{ inputs.working_directory }}
       run: |
-        terraform plan -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=tfplan
+        terraform plan -out=tfplan
         echo "SUCCESS: Terraform plan completed successfully"
         
     - name: Terraform Apply
@@ -78,12 +85,12 @@ jobs:
       working-directory: ${{ inputs.working_directory }}
       run: |
         if [ "${{ inputs.action }}" == "init-plan-apply" ]; then
-          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          terraform apply -auto-approve
         else
           if [ "${{ inputs.auto_approve }}" == "true" ]; then
-            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+            terraform apply -auto-approve
           else
-            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+            terraform apply
           fi
         fi
         echo "SUCCESS: Terraform apply completed successfully"

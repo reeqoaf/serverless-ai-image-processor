@@ -55,15 +55,14 @@ jobs:
         echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
         echo "resource-group=${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
         
-    - name: Validate environment configuration
+    - name: Set Terraform environment variables
       run: |
-        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
-        if [ ! -f "$TFVARS_FILE" ]; then
-          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
-          echo "Cannot proceed with destroy operation."
-          exit 1
-        fi
-        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
+        echo "Setting Terraform environment variables..."
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "SUCCESS: Terraform environment variables set"
 
   destroy:
     runs-on: ubuntu-latest
@@ -89,13 +88,17 @@ jobs:
         echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
         echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
         echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         
     - name: List resources to be destroyed
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         echo "## Resources to be destroyed:" >> $GITHUB_STEP_SUMMARY
         terraform init
-        terraform plan -destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=destroy-plan
+        terraform plan -destroy -out=destroy-plan
         terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
         echo "..." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
@@ -105,9 +108,9 @@ jobs:
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         if [ "${{ inputs.auto_approve }}" == "true" ]; then
-          terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          terraform destroy -auto-approve
         else
-          terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+          terraform destroy
         fi
         echo "SUCCESS: Terraform destroy completed successfully"
         

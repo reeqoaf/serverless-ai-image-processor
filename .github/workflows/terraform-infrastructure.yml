@@ -53,15 +53,14 @@ jobs:
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
         
-    - name: Validate environment configuration
+    - name: Set Terraform environment variables
       run: |
-        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
-        if [ ! -f "$TFVARS_FILE" ]; then
-          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
-          echo "Please create the environment configuration file first."
-          exit 1
-        fi
-        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
+        echo "Setting Terraform environment variables..."
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "SUCCESS: Terraform environment variables set"
 
   terraform:
     runs-on: ubuntu-latest
@@ -87,6 +86,10 @@ jobs:
         echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
         echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
         echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         
     - name: Terraform Init
       if: ${{ inputs.action == 'init' || inputs.action == 'init-plan-apply' }}
@@ -99,7 +102,7 @@ jobs:
       if: ${{ inputs.action == 'plan' || inputs.action == 'init-plan-apply' }}
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
-        terraform plan -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=tfplan
+        terraform plan -out=tfplan
         echo "SUCCESS: Terraform plan completed successfully"
         
     - name: Terraform Apply
@@ -107,9 +110,9 @@ jobs:
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         if [ "${{ inputs.auto_approve }}" == "true" ]; then
-          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          terraform apply -auto-approve
         else
-          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+          terraform apply
         fi
         echo "SUCCESS: Terraform apply completed successfully"
         

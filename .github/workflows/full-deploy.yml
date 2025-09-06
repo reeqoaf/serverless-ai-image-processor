@@ -77,24 +77,23 @@ jobs:
         echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
         echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
         
-    - name: Validate environment configuration
+    - name: Set Terraform environment variables
       run: |
-        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
-        if [ ! -f "$TFVARS_FILE" ]; then
-          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
-          echo "Please create the environment configuration file first."
-          exit 1
-        fi
-        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
+        echo "Setting Terraform environment variables..."
+        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "SUCCESS: Terraform environment variables set"
         
     - name: Terraform Init and Apply
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         terraform init
         if [ "${{ inputs.auto_approve_infrastructure }}" == "true" ]; then
-          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          terraform apply -auto-approve
         else
-          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+          terraform apply
         fi
         echo "SUCCESS: Infrastructure deployed successfully"
         
