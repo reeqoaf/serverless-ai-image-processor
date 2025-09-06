@@ -15,7 +15,7 @@ on:
         required: true
         type: string
       auto_approve:
-        description: 'Auto-approve destroy (skip confirmation)'
+        description: 'Auto-approve destroy operation'
         required: false
         default: false
         type: boolean
@@ -25,19 +25,15 @@ env:
   TF_WORKING_DIR: 'terraform'
 
 jobs:
-  destroy:
+  validate:
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    outputs:
+      resource-group: ${{ steps.set-env.outputs.resource-group }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-      with:
-        terraform_version: ${{ env.TF_VERSION }}
-        
     - name: Azure Login
       uses: azure/login@v1
       with:
@@ -53,9 +49,11 @@ jobs:
         echo "SUCCESS: Destroy confirmation validated"
         
     - name: Set environment variables
+      id: set-env
       run: |
         echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "resource-group=${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
         
     - name: Validate environment configuration
       run: |
@@ -66,12 +64,37 @@ jobs:
           exit 1
         fi
         echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
+
+  destroy:
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Set Terraform environment variables
+      run: |
+        echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
+        echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
         
     - name: List resources to be destroyed
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
-        terraform init
         echo "## Resources to be destroyed:" >> $GITHUB_STEP_SUMMARY
+        terraform init
         terraform plan -destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=destroy-plan
         terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
         echo "..." >> $GITHUB_STEP_SUMMARY
@@ -88,9 +111,33 @@ jobs:
         fi
         echo "SUCCESS: Terraform destroy completed successfully"
         
+    - name: Clean up local state
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        # Remove local state files (optional)
+        if [ -f "terraform.tfstate" ]; then
+          echo "Cleaning up local state files..."
+          rm -f terraform.tfstate*
+        fi
+        echo "SUCCESS: Local state cleanup completed"
+
+  verify:
+    runs-on: ubuntu-latest
+    needs: [validate, destroy]
+    if: always()
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
     - name: Verify destruction
       run: |
-        RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
+        RESOURCE_GROUP="${{ needs.validate.outputs.resource-group }}"
         echo "Verifying destruction of resource group: $RESOURCE_GROUP"
         
         # Check if resource group still exists
@@ -104,16 +151,6 @@ jobs:
         # List any remaining resources
         echo "## Remaining Resources (if any)" >> $GITHUB_STEP_SUMMARY
         az resource list --query "[?resourceGroup=='$RESOURCE_GROUP'].{Name:name, Type:type}" --output table >> $GITHUB_STEP_SUMMARY || echo "No remaining resources found" >> $GITHUB_STEP_SUMMARY
-        
-    - name: Clean up local state
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        # Remove local state files (optional)
-        if [ -f "terraform.tfstate" ]; then
-          echo "Cleaning up local state files..."
-          rm -f terraform.tfstate*
-        fi
-        echo "SUCCESS: Local state cleanup completed"
         
     - name: Destroy summary
       run: |
