@@ -22,11 +22,11 @@ runs:
       shell: bash
       run: |
         az account set --subscription "${{ inputs.subscription-id }}"
-        echo "✅ Set Azure subscription context to: ${{ inputs.subscription-id }}"
+        echo "SUCCESS: Set Azure subscription context to: ${{ inputs.subscription-id }}"
         
     - name: Verify login
       shell: bash
       run: |
         ACCOUNT_INFO=$(az account show --query "{subscriptionId:id, tenantId:tenantId, name:name}" -o json)
-        echo "✅ Azure login successful"
+        echo "SUCCESS: Azure login successful"
         echo "Account info: $ACCOUNT_INFO"

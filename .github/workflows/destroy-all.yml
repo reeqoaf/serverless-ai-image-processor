@@ -53,11 +53,11 @@ jobs:
     - name: Validate destroy confirmation
       run: |
         if [ "${{ inputs.confirm_destroy }}" != "DESTROY_ALL" ] && [ "${{ inputs.auto_approve }}" != "true" ]; then
-          echo "❌ Destroy confirmation failed. You must type 'DESTROY_ALL' to confirm."
+          echo "ERROR: Destroy confirmation failed. You must type 'DESTROY_ALL' to confirm."
           echo "Received: '${{ inputs.confirm_destroy }}'"
           exit 1
         fi
-        echo "✅ Destroy confirmation validated"
+        echo "SUCCESS: Destroy confirmation validated"
         
     - name: Set environment variables
       run: |
@@ -73,13 +73,13 @@ jobs:
         
         # Check if resource group exists
         if az group show --name ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
-          echo "✅ Resource group found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS: Resource group found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
           
           # List all resources
           echo "### Current Resources" >> $GITHUB_STEP_SUMMARY
           az resource list --resource-group ${{ env.RESOURCE_GROUP }} --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
         else
-          echo "⚠️ Resource group not found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "WARNING: Resource group not found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
           echo "No resources to destroy." >> $GITHUB_STEP_SUMMARY
         fi
         
@@ -103,9 +103,9 @@ jobs:
           echo "Deleting function app..."
           az functionapp delete --name $FUNCTION_APP_NAME --resource-group ${{ env.RESOURCE_GROUP }} --yes || true
           
-          echo "✅ Function app destroyed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS: Function app destroyed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
         else
-          echo "⚠️ No function app found in resource group" >> $GITHUB_STEP_SUMMARY
+          echo "WARNING: No function app found in resource group" >> $GITHUB_STEP_SUMMARY
         fi
         
     # Infrastructure Destruction
@@ -126,11 +126,11 @@ jobs:
       run: |
         TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
         if [ ! -f "$TFVARS_FILE" ]; then
-          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
           echo "Cannot proceed with infrastructure destroy operation."
           exit 1
         fi
-        echo "✅ Found environment configuration: $TFVARS_FILE"
+        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
         
     - name: List resources to be destroyed
       if: ${{ inputs.destroy_infrastructure }}
@@ -142,7 +142,7 @@ jobs:
         terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
         echo "..." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ **WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
+        echo "**WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
         
     - name: Terraform Destroy
       if: ${{ inputs.destroy_infrastructure }}
@@ -153,7 +153,7 @@ jobs:
         else
           terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
         fi
-        echo "✅ Infrastructure destroyed successfully"
+        echo "SUCCESS: Infrastructure destroyed successfully"
         
     - name: Post-destroy verification
       run: |
@@ -162,14 +162,14 @@ jobs:
         
         # Check if resource group still exists
         if az group show --name ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
-          echo "⚠️ Resource group still exists: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "WARNING: Resource group still exists: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
           echo "This might be expected if the resource group is not managed by Terraform." >> $GITHUB_STEP_SUMMARY
           
           # List any remaining resources
           echo "### Remaining Resources" >> $GITHUB_STEP_SUMMARY
           az resource list --resource-group ${{ env.RESOURCE_GROUP }} --query "[].{Name:name, Type:type}" --output table >> $GITHUB_STEP_SUMMARY || echo "No remaining resources found" >> $GITHUB_STEP_SUMMARY
         else
-          echo "✅ Resource group successfully destroyed: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS: Resource group successfully destroyed: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
         fi
         
     - name: Clean up local state
@@ -181,16 +181,16 @@ jobs:
           echo "Cleaning up local state files..."
           rm -f terraform.tfstate*
         fi
-        echo "✅ Local state cleanup completed"
+        echo "SUCCESS: Local state cleanup completed"
         
     - name: Destroy All Summary
       run: |
         echo "## Destroy All Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Function App: ${{ inputs.destroy_function && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Infrastructure: ${{ inputs.destroy_infrastructure && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Status: Complete destruction finished" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Function App: ${{ inputs.destroy_function && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Infrastructure: ${{ inputs.destroy_infrastructure && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Complete destruction finished" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ **Note**: All requested components in the ${{ inputs.environment }} environment have been destroyed." >> $GITHUB_STEP_SUMMARY
+        echo "**Note**: All requested components in the ${{ inputs.environment }} environment have been destroyed." >> $GITHUB_STEP_SUMMARY

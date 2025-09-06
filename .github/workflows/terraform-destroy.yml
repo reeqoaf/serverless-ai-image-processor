@@ -48,11 +48,11 @@ jobs:
     - name: Validate destroy confirmation
       run: |
         if [ "${{ inputs.confirm_destroy }}" != "DESTROY" ] && [ "${{ inputs.auto_approve }}" != "true" ]; then
-          echo "❌ Destroy confirmation failed. You must type 'DESTROY' to confirm."
+          echo "ERROR: Destroy confirmation failed. You must type 'DESTROY' to confirm."
           echo "Received: '${{ inputs.confirm_destroy }}'"
           exit 1
         fi
-        echo "✅ Destroy confirmation validated"
+        echo "SUCCESS: Destroy confirmation validated"
         
     - name: Set environment variables
       run: |
@@ -63,11 +63,11 @@ jobs:
       run: |
         TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
         if [ ! -f "$TFVARS_FILE" ]; then
-          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
           echo "Cannot proceed with destroy operation."
           exit 1
         fi
-        echo "✅ Found environment configuration: $TFVARS_FILE"
+        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
         
     - name: List resources to be destroyed
       working-directory: ${{ env.TF_WORKING_DIR }}
@@ -78,7 +78,7 @@ jobs:
         terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
         echo "..." >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ **WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
+        echo "**WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
         
     - name: Terraform Destroy
       working-directory: ${{ env.TF_WORKING_DIR }}
@@ -88,7 +88,7 @@ jobs:
         else
           terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
         fi
-        echo "✅ Terraform destroy completed successfully"
+        echo "SUCCESS: Terraform destroy completed successfully"
         
     - name: Verify destruction
       run: |
@@ -97,10 +97,10 @@ jobs:
         
         # Check if resource group still exists
         if az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
-          echo "⚠️ Resource group still exists: $RESOURCE_GROUP"
+          echo "WARNING: Resource group still exists: $RESOURCE_GROUP"
           echo "This might be expected if the resource group is not managed by Terraform."
         else
-          echo "✅ Resource group successfully destroyed: $RESOURCE_GROUP"
+          echo "SUCCESS: Resource group successfully destroyed: $RESOURCE_GROUP"
         fi
         
         # List any remaining resources
@@ -115,14 +115,14 @@ jobs:
           echo "Cleaning up local state files..."
           rm -f terraform.tfstate*
         fi
-        echo "✅ Local state cleanup completed"
+        echo "SUCCESS: Local state cleanup completed"
         
     - name: Destroy summary
       run: |
         echo "## Destroy Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Status: Infrastructure destroyed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Infrastructure destroyed successfully" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
-        echo "⚠️ **Note**: All infrastructure in the ${{ inputs.environment }} environment has been destroyed." >> $GITHUB_STEP_SUMMARY
+        echo "**Note**: All infrastructure in the ${{ inputs.environment }} environment has been destroyed." >> $GITHUB_STEP_SUMMARY

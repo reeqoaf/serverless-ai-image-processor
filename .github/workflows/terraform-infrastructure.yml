@@ -61,25 +61,25 @@ jobs:
       run: |
         TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
         if [ ! -f "$TFVARS_FILE" ]; then
-          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
           echo "Please create the environment configuration file first."
           exit 1
         fi
-        echo "✅ Found environment configuration: $TFVARS_FILE"
+        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
         
     - name: Terraform Init
       if: ${{ inputs.action == 'init' || inputs.action == 'init-plan-apply' }}
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         terraform init
-        echo "✅ Terraform initialized successfully"
+        echo "SUCCESS: Terraform initialized successfully"
         
     - name: Terraform Plan
       if: ${{ inputs.action == 'plan' || inputs.action == 'init-plan-apply' }}
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         terraform plan -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=tfplan
-        echo "✅ Terraform plan completed successfully"
+        echo "SUCCESS: Terraform plan completed successfully"
         
     - name: Terraform Apply
       if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
@@ -94,7 +94,7 @@ jobs:
             terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
           fi
         fi
-        echo "✅ Terraform apply completed successfully"
+        echo "SUCCESS: Terraform apply completed successfully"
         
     - name: Get Terraform outputs
       if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
@@ -111,7 +111,7 @@ jobs:
         
         # Check if resource group exists
         if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
-          echo "❌ Resource group not found: $RESOURCE_GROUP"
+          echo "ERROR: Resource group not found: $RESOURCE_GROUP"
           exit 1
         fi
         
@@ -119,12 +119,12 @@ jobs:
         echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
         az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
         
-        echo "✅ Infrastructure verification completed"
+        echo "SUCCESS: Infrastructure verification completed"
         
     - name: Action summary
       run: |
         echo "## Terraform Action Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Status: Completed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Completed successfully" >> $GITHUB_STEP_SUMMARY

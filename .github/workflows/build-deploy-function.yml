@@ -60,7 +60,7 @@ jobs:
           RESOURCE_GROUP="${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg"
           FUNCTION_APP_NAME=$(az functionapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
           if [ -z "$FUNCTION_APP_NAME" ]; then
-            echo "❌ Function App not found in resource group: $RESOURCE_GROUP"
+            echo "ERROR: Function App not found in resource group: $RESOURCE_GROUP"
             echo "Please ensure the infrastructure is deployed first or provide the function app name manually."
             exit 1
           fi
@@ -85,19 +85,19 @@ jobs:
         echo "Function App Status: $STATUS"
         
         if [ "$STATUS" != "Running" ]; then
-          echo "❌ Function App is not running. Current status: $STATUS"
+          echo "ERROR: Function App is not running. Current status: $STATUS"
           exit 1
         fi
         
         # Get function app URL
         FUNCTION_URL=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" --query "hostNames[0]" -o tsv)
-        echo "✅ Function App deployed successfully!"
+        echo "SUCCESS: Function App deployed successfully!"
         echo "URL: https://$FUNCTION_URL"
         
     - name: Build and Deploy summary
       run: |
         echo "## Build and Deploy Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Function App: ${{ steps.get-function-app-name.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Build: Completed" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Deployment: Successful" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Function App: ${{ steps.get-function-app-name.outputs.name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Build: Completed" >> $GITHUB_STEP_SUMMARY
+        echo "- Deployment: Successful" >> $GITHUB_STEP_SUMMARY

@@ -81,7 +81,7 @@ jobs:
     - name: Build summary
       run: |
         echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ .NET ${{ inputs.dotnet_version }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Project: ${{ inputs.project_path }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Configuration: ${{ inputs.configuration }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Artifacts: ${{ inputs.upload_artifacts && inputs.artifact_name || 'Not uploaded' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- .NET ${{ inputs.dotnet_version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Project: ${{ inputs.project_path }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Configuration: ${{ inputs.configuration }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Artifacts: ${{ inputs.upload_artifacts && inputs.artifact_name || 'Not uploaded' }}" >> $GITHUB_STEP_SUMMARY

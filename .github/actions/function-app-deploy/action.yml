@@ -39,13 +39,13 @@ runs:
         echo "Function App Status: $STATUS"
         
         if [ "$STATUS" != "Running" ]; then
-          echo "❌ Function App is not running. Current status: $STATUS"
+          echo "ERROR: Function App is not running. Current status: $STATUS"
           exit 1
         fi
         
         # Get function app URL
         FUNCTION_URL=$(az functionapp show --name ${{ inputs.app-name }} --resource-group ${{ inputs.resource-group }} --query "hostNames[0]" -o tsv)
-        echo "✅ Function App deployed successfully!"
+        echo "SUCCESS: Function App deployed successfully!"
         echo "URL: https://$FUNCTION_URL"
         
         # Output the URL for other steps

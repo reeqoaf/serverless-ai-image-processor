@@ -38,11 +38,11 @@ runs:
       run: |
         TFVARS_FILE="${{ inputs.working-directory }}/envs/${{ inputs.environment }}/terraform.tfvars"
         if [ ! -f "$TFVARS_FILE" ]; then
-          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
           echo "Please create the environment configuration file first."
           exit 1
         fi
-        echo "✅ Found environment configuration: $TFVARS_FILE"
+        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
         
     - name: Terraform Init
       if: ${{ inputs.validate-config == 'true' }}
@@ -50,7 +50,7 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         terraform init
-        echo "✅ Terraform initialized successfully"
+        echo "SUCCESS: Terraform initialized successfully"
         
     - name: Terraform Validate
       if: ${{ inputs.validate-config == 'true' }}
@@ -58,4 +58,4 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         terraform validate
-        echo "✅ Terraform configuration is valid"
+        echo "SUCCESS: Terraform configuration is valid"

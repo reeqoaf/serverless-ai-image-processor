@@ -2,16 +2,6 @@ name: Build Azure Function
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, develop]
-    paths:
-      - 'src/**'
-      - '.github/workflows/build-function.yml'
-  pull_request:
-    branches: [main, develop]
-    paths:
-      - 'src/**'
-      - '.github/workflows/build-function.yml'
 
 env:
   DOTNET_VERSION: '9.0.x'
@@ -50,7 +40,7 @@ jobs:
     - name: Build summary
       run: |
         echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ .NET ${{ env.DOTNET_VERSION }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Project: ${{ env.PROJECT_PATH }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Configuration: Release" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Artifacts: function-app-build" >> $GITHUB_STEP_SUMMARY
+        echo "- .NET ${{ env.DOTNET_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Project: ${{ env.PROJECT_PATH }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Configuration: Release" >> $GITHUB_STEP_SUMMARY
+        echo "- Artifacts: function-app-build" >> $GITHUB_STEP_SUMMARY

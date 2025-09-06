@@ -76,11 +76,11 @@ jobs:
       run: |
         TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
         if [ ! -f "$TFVARS_FILE" ]; then
-          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "ERROR: Environment configuration file not found: $TFVARS_FILE"
           echo "Please create the environment configuration file first."
           exit 1
         fi
-        echo "✅ Found environment configuration: $TFVARS_FILE"
+        echo "SUCCESS: Found environment configuration: $TFVARS_FILE"
         
     - name: Terraform Init and Apply
       if: ${{ inputs.deploy_infrastructure }}
@@ -92,7 +92,7 @@ jobs:
         else
           terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
         fi
-        echo "✅ Infrastructure deployed successfully"
+        echo "SUCCESS: Infrastructure deployed successfully"
         
     - name: Get Infrastructure Outputs
       if: ${{ inputs.deploy_infrastructure }}
@@ -120,7 +120,7 @@ jobs:
         dotnet restore ${{ env.PROJECT_PATH }}
         dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
         dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ./publish --no-build
-        echo "✅ Function app built successfully"
+        echo "SUCCESS: Function app built successfully"
         
     - name: Get Function App Name
       if: ${{ inputs.deploy_function }}
@@ -133,7 +133,7 @@ jobs:
           RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
           FUNCTION_APP_NAME=$(az functionapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
           if [ -z "$FUNCTION_APP_NAME" ]; then
-            echo "❌ Function App not found in resource group: $RESOURCE_GROUP"
+            echo "ERROR: Function App not found in resource group: $RESOURCE_GROUP"
             echo "Please ensure the infrastructure is deployed first or provide the function app name manually."
             exit 1
           fi
@@ -160,13 +160,13 @@ jobs:
         echo "Function App Status: $STATUS"
         
         if [ "$STATUS" != "Running" ]; then
-          echo "❌ Function App is not running. Current status: $STATUS"
+          echo "ERROR: Function App is not running. Current status: $STATUS"
           exit 1
         fi
         
         # Get function app URL
         FUNCTION_URL=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" --query "hostNames[0]" -o tsv)
-        echo "✅ Function App deployed successfully!"
+        echo "SUCCESS: Function App deployed successfully!"
         echo "URL: https://$FUNCTION_URL"
         
     - name: End-to-End Verification
@@ -176,9 +176,9 @@ jobs:
         
         # Verify resource group exists
         if az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
-          echo "✅ Resource group exists: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
+          echo "SUCCESS: Resource group exists: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ Resource group not found: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
+          echo "ERROR: Resource group not found: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
         fi
         
         # List all resources
@@ -189,17 +189,17 @@ jobs:
         if [ "${{ inputs.deploy_function }}" == "true" ]; then
           FUNCTION_APP_NAME="${{ steps.get-function-app-name.outputs.name }}"
           if az functionapp show --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP > /dev/null 2>&1; then
-            echo "✅ Function app deployed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+            echo "SUCCESS: Function app deployed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ Function app not found: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+            echo "ERROR: Function app not found: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
           fi
         fi
         
     - name: Full Deploy Summary
       run: |
         echo "## Full Deploy Summary" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Infrastructure: ${{ inputs.deploy_infrastructure && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Function App: ${{ inputs.deploy_function && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Auto-approve Infrastructure: ${{ inputs.auto_approve_infrastructure }}" >> $GITHUB_STEP_SUMMARY
-        echo "- ✅ Status: Full deployment completed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Infrastructure: ${{ inputs.deploy_infrastructure && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Function App: ${{ inputs.deploy_function && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Auto-approve Infrastructure: ${{ inputs.auto_approve_infrastructure }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Full deployment completed successfully" >> $GITHUB_STEP_SUMMARY

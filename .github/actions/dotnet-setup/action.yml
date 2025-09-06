@@ -33,4 +33,4 @@ runs:
       shell: bash
       run: |
         dotnet --version
-        echo "✅ .NET ${{ inputs.version }} installed successfully"
+        echo "SUCCESS: .NET ${{ inputs.version }} installed successfully"
