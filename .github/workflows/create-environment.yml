@@ -165,70 +165,70 @@ jobs:
         COST_CENTER="${{ inputs.cost_center }}"
         
         cat > "$TFVARS_FILE" << 'EOF'
-# Environment Configuration for $ENV_NAME
-# Generated on $(date)
-
-# =============================================================================
-# REQUIRED VARIABLES
-# =============================================================================
-
-subscription_id = "$SUBSCRIPTION_ID"
-
-# =============================================================================
-# CORE INFRASTRUCTURE VARIABLES
-# =============================================================================
-
-project_name = "$PROJECT_NAME"
-environment  = "$ENV_NAME"
-location     = "$LOCATION"
-
-# =============================================================================
-# STORAGE CONFIGURATION
-# =============================================================================
-
-storage_config = {
-  tier                = "$STORAGE_TIER"
-  replication_type    = "$STORAGE_REPLICATION"
-  enable_versioning   = $ENABLE_VERSIONING
-}
-
-# =============================================================================
-# COGNITIVE SERVICES CONFIGURATION
-# =============================================================================
-
-cognitive_services_config = {
-  sku_name = "$COGNITIVE_SKU"
-}
-
-# =============================================================================
-# FUNCTION APP CONFIGURATION
-# =============================================================================
-
-function_app_config = {
-  sku_tier = "$FUNCTION_TIER"
-  sku_size = "$FUNCTION_SIZE"
-}
-
-# =============================================================================
-# APPLICATION CONFIGURATION
-# =============================================================================
-
-max_retries = $MAX_RETRIES
-
-# =============================================================================
-# TAGS CONFIGURATION
-# =============================================================================
-
-tags = {
-  Project     = "AI Image Processor"
-  Environment = "$(echo $ENV_NAME | tr '[:lower:]' '[:upper:]')"
-  ManagedBy   = "Terraform"
-  Owner       = "$OWNER"
-  CostCenter  = "$COST_CENTER"
-  CreatedBy   = "GitHub Actions"
-  CreatedOn   = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
+        # Environment Configuration for $ENV_NAME
+        # Generated on $(date)
+        
+        # =============================================================================
+        # REQUIRED VARIABLES
+        # =============================================================================
+        
+        subscription_id = "$SUBSCRIPTION_ID"
+        
+        # =============================================================================
+        # CORE INFRASTRUCTURE VARIABLES
+        # =============================================================================
+        
+        project_name = "$PROJECT_NAME"
+        environment  = "$ENV_NAME"
+        location     = "$LOCATION"
+        
+        # =============================================================================
+        # STORAGE CONFIGURATION
+        # =============================================================================
+        
+        storage_config = {
+          tier                = "$STORAGE_TIER"
+          replication_type    = "$STORAGE_REPLICATION"
+          enable_versioning   = $ENABLE_VERSIONING
+        }
+        
+        # =============================================================================
+        # COGNITIVE SERVICES CONFIGURATION
+        # =============================================================================
+        
+        cognitive_services_config = {
+          sku_name = "$COGNITIVE_SKU"
+        }
+        
+        # =============================================================================
+        # FUNCTION APP CONFIGURATION
+        # =============================================================================
+        
+        function_app_config = {
+          sku_tier = "$FUNCTION_TIER"
+          sku_size = "$FUNCTION_SIZE"
+        }
+        
+        # =============================================================================
+        # APPLICATION CONFIGURATION
+        # =============================================================================
+        
+        max_retries = $MAX_RETRIES
+        
+        # =============================================================================
+        # TAGS CONFIGURATION
+        # =============================================================================
+        
+        tags = {
+          Project     = "AI Image Processor"
+          Environment = "$(echo $ENV_NAME | tr '[:lower:]' '[:upper:]')"
+          ManagedBy   = "Terraform"
+          Owner       = "$OWNER"
+          CostCenter  = "$COST_CENTER"
+          CreatedBy   = "GitHub Actions"
+          CreatedOn   = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        }
+        EOF
         
         echo "✅ Generated terraform.tfvars file: $TFVARS_FILE"
         
