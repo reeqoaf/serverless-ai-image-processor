@@ -150,6 +150,20 @@ jobs:
         ENV_NAME="${{ inputs.environment_name }}"
         TFVARS_FILE="terraform/envs/$ENV_NAME/terraform.tfvars"
         
+        # Set variables for the terraform.tfvars file
+        SUBSCRIPTION_ID="${{ inputs.subscription_id }}"
+        PROJECT_NAME="${{ inputs.project_name }}"
+        LOCATION="${{ inputs.location }}"
+        STORAGE_TIER="${{ inputs.storage_tier }}"
+        STORAGE_REPLICATION="${{ inputs.storage_replication }}"
+        ENABLE_VERSIONING="${{ inputs.enable_versioning }}"
+        COGNITIVE_SKU="${{ inputs.cognitive_services_sku }}"
+        FUNCTION_TIER="${{ inputs.function_app_tier }}"
+        FUNCTION_SIZE="${{ inputs.function_app_size }}"
+        MAX_RETRIES="${{ inputs.max_retries }}"
+        OWNER="${{ inputs.owner }}"
+        COST_CENTER="${{ inputs.cost_center }}"
+        
         cat > "$TFVARS_FILE" << EOF
 # Environment Configuration for $ENV_NAME
 # Generated on $(date)
@@ -158,24 +172,24 @@ jobs:
 # REQUIRED VARIABLES
 # =============================================================================
 
-subscription_id = "${{ inputs.subscription_id }}"
+subscription_id = "$SUBSCRIPTION_ID"
 
 # =============================================================================
 # CORE INFRASTRUCTURE VARIABLES
 # =============================================================================
 
-project_name = "${{ inputs.project_name }}"
+project_name = "$PROJECT_NAME"
 environment  = "$ENV_NAME"
-location     = "${{ inputs.location }}"
+location     = "$LOCATION"
 
 # =============================================================================
 # STORAGE CONFIGURATION
 # =============================================================================
 
 storage_config = {
-  tier                = "${{ inputs.storage_tier }}"
-  replication_type    = "${{ inputs.storage_replication }}"
-  enable_versioning   = ${{ inputs.enable_versioning }}
+  tier                = "$STORAGE_TIER"
+  replication_type    = "$STORAGE_REPLICATION"
+  enable_versioning   = $ENABLE_VERSIONING
 }
 
 # =============================================================================
@@ -183,7 +197,7 @@ storage_config = {
 # =============================================================================
 
 cognitive_services_config = {
-  sku_name = "${{ inputs.cognitive_services_sku }}"
+  sku_name = "$COGNITIVE_SKU"
 }
 
 # =============================================================================
@@ -191,15 +205,15 @@ cognitive_services_config = {
 # =============================================================================
 
 function_app_config = {
-  sku_tier = "${{ inputs.function_app_tier }}"
-  sku_size = "${{ inputs.function_app_size }}"
+  sku_tier = "$FUNCTION_TIER"
+  sku_size = "$FUNCTION_SIZE"
 }
 
 # =============================================================================
 # APPLICATION CONFIGURATION
 # =============================================================================
 
-max_retries = ${{ inputs.max_retries }}
+max_retries = $MAX_RETRIES
 
 # =============================================================================
 # TAGS CONFIGURATION
@@ -209,8 +223,8 @@ tags = {
   Project     = "AI Image Processor"
   Environment = "$(echo $ENV_NAME | tr '[:lower:]' '[:upper:]')"
   ManagedBy   = "Terraform"
-  Owner       = "${{ inputs.owner }}"
-  CostCenter  = "${{ inputs.cost_center }}"
+  Owner       = "$OWNER"
+  CostCenter  = "$COST_CENTER"
   CreatedBy   = "GitHub Actions"
   CreatedOn   = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
