@@ -183,7 +183,7 @@ jobs:
           echo "name=${{ inputs.function_app_name }}" >> $GITHUB_OUTPUT
         else
           # Auto-detect function app name from Terraform state or resource group
-          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resource-group || (vars.PROJECT_NAME || 'ai-image-processor') + '-' + inputs.environment + '-rg' }}"
+          RESOURCE_GROUP="${{ needs.infrastructure.outputs.resource-group || format('{0}-{1}-rg', vars.PROJECT_NAME || 'ai-image-processor', inputs.environment) }}"
           FUNCTION_APP_NAME=$(az functionapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
           if [ -z "$FUNCTION_APP_NAME" ]; then
             echo "ERROR: Function App not found in resource group: $RESOURCE_GROUP"
@@ -207,7 +207,7 @@ jobs:
         echo "Verifying deployment for: $FUNCTION_APP_NAME"
         
         # Check if function app is running
-        STATUS=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ needs.infrastructure.outputs.resource-group || (vars.PROJECT_NAME || 'ai-image-processor') + '-' + inputs.environment + '-rg' }}" --query "state" -o tsv)
+        STATUS=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ needs.infrastructure.outputs.resource-group || format('{0}-{1}-rg', vars.PROJECT_NAME || 'ai-image-processor', inputs.environment) }}" --query "state" -o tsv)
         echo "Function App Status: $STATUS"
         
         if [ "$STATUS" != "Running" ]; then
@@ -216,7 +216,7 @@ jobs:
         fi
         
         # Get function app URL
-        FUNCTION_URL=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ needs.infrastructure.outputs.resource-group || (vars.PROJECT_NAME || 'ai-image-processor') + '-' + inputs.environment + '-rg' }}" --query "hostNames[0]" -o tsv)
+        FUNCTION_URL=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ needs.infrastructure.outputs.resource-group || format('{0}-{1}-rg', vars.PROJECT_NAME || 'ai-image-processor', inputs.environment) }}" --query "hostNames[0]" -o tsv)
         echo "SUCCESS: Function App deployed successfully!"
         echo "URL: https://$FUNCTION_URL"
         
@@ -244,7 +244,7 @@ jobs:
     - name: End-to-End Verification
       run: |
         echo "## End-to-End Verification" >> $GITHUB_STEP_SUMMARY
-        RESOURCE_GROUP="${{ needs.infrastructure.outputs.resource-group || (vars.PROJECT_NAME || 'ai-image-processor') + '-' + inputs.environment + '-rg' }}"
+        RESOURCE_GROUP="${{ needs.infrastructure.outputs.resource-group || format('{0}-{1}-rg', vars.PROJECT_NAME || 'ai-image-processor', inputs.environment) }}"
         
         # Verify resource group exists
         if az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
