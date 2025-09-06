@@ -1,0 +1,107 @@
+# Example Terraform Variables Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+# Azure Subscription ID (required)
+subscription_id = "your-subscription-id-here"
+
+# =============================================================================
+# CORE INFRASTRUCTURE VARIABLES
+# =============================================================================
+
+# Project name (used for resource naming)
+project_name = "ai-image-processor"
+
+# Environment name (dev, staging, prod)
+environment = "dev"
+
+# Azure region for resources
+location = "West Europe"
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+
+storage_config = {
+  # Storage tier: Standard or Premium
+  tier = "Standard"
+  
+  # Replication type: LRS, GRS, RAGRS, ZRS
+  # LRS = Locally Redundant Storage (cheapest)
+  # GRS = Geo-Redundant Storage (recommended for production)
+  replication_type = "LRS"
+  
+  # Enable blob versioning (increases storage costs)
+  enable_versioning = false
+}
+
+# =============================================================================
+# COGNITIVE SERVICES CONFIGURATION
+# =============================================================================
+
+cognitive_services_config = {
+  # SKU name: F0 (free), S0, S1, S2, S3, S4, S5, S6
+  # F0 = Free tier (20 calls/minute, 5,000 calls/month)
+  # S0 = Standard tier (10 calls/second, pay per transaction)
+  sku_name = "F0"
+}
+
+# =============================================================================
+# FUNCTION APP CONFIGURATION
+# =============================================================================
+
+function_app_config = {
+  # SKU tier: Consumption, Basic, Standard, Premium
+  # Consumption = Pay per execution (recommended for dev)
+  # Premium = Fixed cost with better performance
+  sku_tier = "Consumption"
+  
+  # SKU size: Y1 (Consumption), B1/B2/B3 (Basic), S1/S2/S3 (Standard), EP1/EP2/EP3 (Premium)
+  sku_size = "Y1"
+}
+
+
+# =============================================================================
+# APPLICATION CONFIGURATION
+# =============================================================================
+
+# Maximum number of retries for failed operations
+max_retries = 3
+
+
+# =============================================================================
+# TAGS CONFIGURATION
+# =============================================================================
+
+tags = {
+  Project     = "AI Image Processor"
+  Environment = "Development"
+  ManagedBy   = "Terraform"
+  Owner       = "Your Team"
+  CostCenter  = "R&D"
+}
+
+# =============================================================================
+# ENVIRONMENT-SPECIFIC EXAMPLES
+# =============================================================================
+
+# Development Environment (Free/Low Cost)
+# - Computer Vision: F0 (free tier)
+# - Functions: Consumption (pay per execution)
+# - CosmosDB: Serverless (pay per request)
+# - Storage: LRS (cheapest replication)
+
+# Staging Environment (Balanced)
+# - Computer Vision: S0 (standard tier)
+# - Functions: Consumption (pay per execution)
+# - CosmosDB: Serverless (pay per request)
+# - Storage: GRS (geo-redundant)
+
+# Production Environment (High Availability)
+# - Computer Vision: S1+ (higher tier)
+# - Functions: Premium (fixed cost, better performance)
+# - CosmosDB: Serverless (pay per request)
+# - Storage: GRS (geo-redundant)
