@@ -1,0 +1,130 @@
+name: Terraform Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy infrastructure to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: 'plan'
+        type: choice
+        options:
+          - init
+          - plan
+          - apply
+          - init-plan-apply
+      auto_approve:
+        description: 'Auto-approve apply (skip confirmation)'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: '1.10.0'
+  TF_WORKING_DIR: 'terraform'
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Set environment variables
+      run: |
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "LOCATION=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        
+    - name: Validate environment configuration
+      run: |
+        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
+        if [ ! -f "$TFVARS_FILE" ]; then
+          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "Please create the environment configuration file first."
+          exit 1
+        fi
+        echo "✅ Found environment configuration: $TFVARS_FILE"
+        
+    - name: Terraform Init
+      if: ${{ inputs.action == 'init' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init
+        echo "✅ Terraform initialized successfully"
+        
+    - name: Terraform Plan
+      if: ${{ inputs.action == 'plan' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform plan -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=tfplan
+        echo "✅ Terraform plan completed successfully"
+        
+    - name: Terraform Apply
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        if [ "${{ inputs.action }}" == "init-plan-apply" ]; then
+          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+        else
+          if [ "${{ inputs.auto_approve }}" == "true" ]; then
+            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          else
+            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+          fi
+        fi
+        echo "✅ Terraform apply completed successfully"
+        
+    - name: Get Terraform outputs
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+        terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+        
+    - name: Verify infrastructure
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      run: |
+        RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
+        echo "Verifying infrastructure in resource group: $RESOURCE_GROUP"
+        
+        # Check if resource group exists
+        if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
+          echo "❌ Resource group not found: $RESOURCE_GROUP"
+          exit 1
+        fi
+        
+        # List resources in the resource group
+        echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
+        az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+        
+        echo "✅ Infrastructure verification completed"
+        
+    - name: Action summary
+      run: |
+        echo "## Terraform Action Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Status: Completed successfully" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,61 @@
+name: 'Terraform Setup'
+description: 'Setup Terraform with specified version and validate environment configuration'
+inputs:
+  version:
+    description: 'Terraform version to install'
+    required: false
+    default: '1.10.0'
+  working-directory:
+    description: 'Terraform working directory'
+    required: false
+    default: 'terraform'
+  environment:
+    description: 'Environment name for validation'
+    required: true
+  validate-config:
+    description: 'Whether to validate the environment configuration'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.version }}
+        
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "TF_VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+        echo "TF_WORKING_DIR=${{ inputs.working-directory }}" >> $GITHUB_ENV
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        
+    - name: Validate environment configuration
+      if: ${{ inputs.validate-config == 'true' }}
+      shell: bash
+      run: |
+        TFVARS_FILE="${{ inputs.working-directory }}/envs/${{ inputs.environment }}/terraform.tfvars"
+        if [ ! -f "$TFVARS_FILE" ]; then
+          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "Please create the environment configuration file first."
+          exit 1
+        fi
+        echo "✅ Found environment configuration: $TFVARS_FILE"
+        
+    - name: Terraform Init
+      if: ${{ inputs.validate-config == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        terraform init
+        echo "✅ Terraform initialized successfully"
+        
+    - name: Terraform Validate
+      if: ${{ inputs.validate-config == 'true' }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        terraform validate
+        echo "✅ Terraform configuration is valid"

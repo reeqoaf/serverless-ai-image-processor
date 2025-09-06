@@ -1,0 +1,128 @@
+name: Reusable Terraform Deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: 'Environment name'
+        required: true
+        type: string
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        type: string
+      working_directory:
+        description: 'Terraform working directory'
+        required: false
+        default: 'terraform'
+        type: string
+      terraform_version:
+        description: 'Terraform version to use'
+        required: false
+        default: '1.10.0'
+        type: string
+      auto_approve:
+        description: 'Auto-approve apply operations'
+        required: false
+        default: false
+        type: boolean
+    outputs:
+      deployment_success:
+        description: 'Whether the deployment was successful'
+        value: ${{ jobs.terraform.outputs.deployment_success }}
+      resource_group:
+        description: 'Resource group name'
+        value: ${{ jobs.terraform.outputs.resource_group }}
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    outputs:
+      deployment_success: ${{ steps.set-outputs.outputs.deployment_success }}
+      resource_group: ${{ steps.set-outputs.outputs.resource_group }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: ./.github/actions/azure-login
+      with:
+        credentials: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Setup Terraform
+      uses: ./.github/actions/terraform-setup
+      with:
+        version: ${{ inputs.terraform_version }}
+        working-directory: ${{ inputs.working_directory }}
+        environment: ${{ inputs.environment }}
+        validate-config: 'true'
+        
+    - name: Set environment variables
+      run: |
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "LOCATION=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        RESOURCE_GROUP="${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg"
+        echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_ENV
+        
+    - name: Terraform Plan
+      if: ${{ inputs.action == 'plan' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        terraform plan -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=tfplan
+        echo "✅ Terraform plan completed successfully"
+        
+    - name: Terraform Apply
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        if [ "${{ inputs.action }}" == "init-plan-apply" ]; then
+          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+        else
+          if [ "${{ inputs.auto_approve }}" == "true" ]; then
+            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+          else
+            terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+          fi
+        fi
+        echo "✅ Terraform apply completed successfully"
+        
+    - name: Get Terraform outputs
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      working-directory: ${{ inputs.working_directory }}
+      run: |
+        echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+        terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+        
+    - name: Verify infrastructure
+      if: ${{ inputs.action == 'apply' || inputs.action == 'init-plan-apply' }}
+      run: |
+        RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
+        echo "Verifying infrastructure in resource group: $RESOURCE_GROUP"
+        
+        # Check if resource group exists
+        if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
+          echo "❌ Resource group not found: $RESOURCE_GROUP"
+          exit 1
+        fi
+        
+        # List resources in the resource group
+        echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
+        az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+        
+        echo "✅ Infrastructure verification completed"
+        
+    - name: Set outputs
+      id: set-outputs
+      run: |
+        echo "deployment_success=true" >> $GITHUB_OUTPUT
+        echo "resource_group=${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
+        
+    - name: Action summary
+      run: |
+        echo "## Terraform Action Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Action: ${{ inputs.action }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Working Directory: ${{ inputs.working_directory }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Status: Completed successfully" >> $GITHUB_STEP_SUMMARY

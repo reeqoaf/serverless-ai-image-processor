@@ -1,0 +1,196 @@
+name: Destroy All (Environment + Infrastructure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to destroy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      confirm_destroy:
+        description: 'Type "DESTROY_ALL" to confirm (case sensitive)'
+        required: true
+        type: string
+      destroy_function:
+        description: 'Destroy function app (stop/delete)'
+        required: false
+        default: true
+        type: boolean
+      destroy_infrastructure:
+        description: 'Destroy infrastructure (Terraform)'
+        required: false
+        default: true
+        type: boolean
+      auto_approve:
+        description: 'Auto-approve all destroy operations'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: '1.10.0'
+  TF_WORKING_DIR: 'terraform'
+
+jobs:
+  destroy-all:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Validate destroy confirmation
+      run: |
+        if [ "${{ inputs.confirm_destroy }}" != "DESTROY_ALL" ] && [ "${{ inputs.auto_approve }}" != "true" ]; then
+          echo "❌ Destroy confirmation failed. You must type 'DESTROY_ALL' to confirm."
+          echo "Received: '${{ inputs.confirm_destroy }}'"
+          exit 1
+        fi
+        echo "✅ Destroy confirmation validated"
+        
+    - name: Set environment variables
+      run: |
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        RESOURCE_GROUP="${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg"
+        echo "RESOURCE_GROUP=$RESOURCE_GROUP" >> $GITHUB_ENV
+        
+    - name: Pre-destroy verification
+      run: |
+        echo "## Pre-Destroy Verification" >> $GITHUB_STEP_SUMMARY
+        echo "Checking resources in environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+        # Check if resource group exists
+        if az group show --name ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
+          echo "✅ Resource group found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          
+          # List all resources
+          echo "### Current Resources" >> $GITHUB_STEP_SUMMARY
+          az resource list --resource-group ${{ env.RESOURCE_GROUP }} --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Resource group not found: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "No resources to destroy." >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    # Function App Destruction
+    - name: Destroy Function App
+      if: ${{ inputs.destroy_function }}
+      run: |
+        echo "## Function App Destruction" >> $GITHUB_STEP_SUMMARY
+        echo "Destroying function app in environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+        # Get function app name
+        FUNCTION_APP_NAME=$(az functionapp list --resource-group ${{ env.RESOURCE_GROUP }} --query "[0].name" -o tsv)
+        if [ -n "$FUNCTION_APP_NAME" ]; then
+          echo "Found function app: $FUNCTION_APP_NAME"
+          
+          # Stop the function app
+          echo "Stopping function app..."
+          az functionapp stop --name $FUNCTION_APP_NAME --resource-group ${{ env.RESOURCE_GROUP }} || true
+          
+          # Delete the function app
+          echo "Deleting function app..."
+          az functionapp delete --name $FUNCTION_APP_NAME --resource-group ${{ env.RESOURCE_GROUP }} --yes || true
+          
+          echo "✅ Function app destroyed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ No function app found in resource group" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    # Infrastructure Destruction
+    - name: Destroy Infrastructure
+      if: ${{ inputs.destroy_infrastructure }}
+      run: |
+        echo "## Infrastructure Destruction" >> $GITHUB_STEP_SUMMARY
+        echo "Destroying infrastructure in environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Setup Terraform
+      if: ${{ inputs.destroy_infrastructure }}
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Validate environment configuration
+      if: ${{ inputs.destroy_infrastructure }}
+      run: |
+        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
+        if [ ! -f "$TFVARS_FILE" ]; then
+          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "Cannot proceed with infrastructure destroy operation."
+          exit 1
+        fi
+        echo "✅ Found environment configuration: $TFVARS_FILE"
+        
+    - name: List resources to be destroyed
+      if: ${{ inputs.destroy_infrastructure }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init
+        echo "### Resources to be destroyed by Terraform:" >> $GITHUB_STEP_SUMMARY
+        terraform plan -destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -out=destroy-plan
+        terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
+        echo "..." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ **WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Terraform Destroy
+      if: ${{ inputs.destroy_infrastructure }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        if [ "${{ inputs.auto_approve }}" == "true" ]; then
+          terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+        else
+          terraform destroy -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+        fi
+        echo "✅ Infrastructure destroyed successfully"
+        
+    - name: Post-destroy verification
+      run: |
+        echo "## Post-Destroy Verification" >> $GITHUB_STEP_SUMMARY
+        echo "Verifying destruction of environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+        # Check if resource group still exists
+        if az group show --name ${{ env.RESOURCE_GROUP }} > /dev/null 2>&1; then
+          echo "⚠️ Resource group still exists: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+          echo "This might be expected if the resource group is not managed by Terraform." >> $GITHUB_STEP_SUMMARY
+          
+          # List any remaining resources
+          echo "### Remaining Resources" >> $GITHUB_STEP_SUMMARY
+          az resource list --resource-group ${{ env.RESOURCE_GROUP }} --query "[].{Name:name, Type:type}" --output table >> $GITHUB_STEP_SUMMARY || echo "No remaining resources found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "✅ Resource group successfully destroyed: ${{ env.RESOURCE_GROUP }}" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+    - name: Clean up local state
+      if: ${{ inputs.destroy_infrastructure }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        # Remove local state files (optional)
+        if [ -f "terraform.tfstate" ]; then
+          echo "Cleaning up local state files..."
+          rm -f terraform.tfstate*
+        fi
+        echo "✅ Local state cleanup completed"
+        
+    - name: Destroy All Summary
+      run: |
+        echo "## Destroy All Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Function App: ${{ inputs.destroy_function && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Infrastructure: ${{ inputs.destroy_infrastructure && 'Destroyed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Status: Complete destruction finished" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "⚠️ **Note**: All requested components in the ${{ inputs.environment }} environment have been destroyed." >> $GITHUB_STEP_SUMMARY

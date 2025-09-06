@@ -1,0 +1,36 @@
+name: 'DotNet Setup'
+description: 'Setup .NET with specified version and build configuration'
+inputs:
+  version:
+    description: '.NET version to install'
+    required: false
+    default: '9.0.x'
+  project-path:
+    description: 'Path to the .NET project'
+    required: false
+    default: 'src/AiImageProcessor'
+  configuration:
+    description: 'Build configuration'
+    required: false
+    default: 'Release'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ inputs.version }}
+        
+    - name: Set environment variables
+      shell: bash
+      run: |
+        echo "DOTNET_VERSION=${{ inputs.version }}" >> $GITHUB_ENV
+        echo "PROJECT_PATH=${{ inputs.project-path }}" >> $GITHUB_ENV
+        echo "BUILD_CONFIGURATION=${{ inputs.configuration }}" >> $GITHUB_ENV
+        
+    - name: Verify .NET installation
+      shell: bash
+      run: |
+        dotnet --version
+        echo "✅ .NET ${{ inputs.version }} installed successfully"

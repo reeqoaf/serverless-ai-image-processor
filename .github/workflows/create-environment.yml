@@ -1,0 +1,290 @@
+name: Create Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment_name:
+        description: 'New environment name (e.g., test, qa, demo)'
+        required: true
+        type: string
+      project_name:
+        description: 'Project name (default: ai-image-processor)'
+        required: false
+        default: 'ai-image-processor'
+        type: string
+      location:
+        description: 'Azure region'
+        required: false
+        default: 'West Europe'
+        type: choice
+        options:
+          - 'West Europe'
+          - 'North Europe'
+          - 'East US'
+          - 'West US 2'
+          - 'Central US'
+          - 'East US 2'
+          - 'West US'
+          - 'Southeast Asia'
+      subscription_id:
+        description: 'Azure Subscription ID'
+        required: true
+        type: string
+      storage_tier:
+        description: 'Storage account tier'
+        required: false
+        default: 'Standard'
+        type: choice
+        options:
+          - 'Standard'
+          - 'Premium'
+      storage_replication:
+        description: 'Storage replication type'
+        required: false
+        default: 'LRS'
+        type: choice
+        options:
+          - 'LRS'
+          - 'GRS'
+          - 'RAGRS'
+          - 'ZRS'
+      cognitive_services_sku:
+        description: 'Cognitive Services SKU'
+        required: false
+        default: 'F0'
+        type: choice
+        options:
+          - 'F0'
+          - 'S0'
+          - 'S1'
+          - 'S2'
+          - 'S3'
+          - 'S4'
+          - 'S5'
+          - 'S6'
+      function_app_tier:
+        description: 'Function App SKU tier'
+        required: false
+        default: 'Consumption'
+        type: choice
+        options:
+          - 'Consumption'
+          - 'Basic'
+          - 'Standard'
+          - 'Premium'
+      function_app_size:
+        description: 'Function App SKU size'
+        required: false
+        default: 'Y1'
+        type: choice
+        options:
+          - 'Y1'
+          - 'B1'
+          - 'B2'
+          - 'B3'
+          - 'S1'
+          - 'S2'
+          - 'S3'
+          - 'EP1'
+          - 'EP2'
+          - 'EP3'
+      max_retries:
+        description: 'Maximum retries for operations'
+        required: false
+        default: '3'
+        type: string
+      enable_versioning:
+        description: 'Enable blob versioning'
+        required: false
+        default: false
+        type: boolean
+      owner:
+        description: 'Resource owner/team'
+        required: false
+        default: 'Dev Team'
+        type: string
+      cost_center:
+        description: 'Cost center for billing'
+        required: false
+        default: 'R&D'
+        type: string
+
+env:
+  TF_VERSION: '1.10.0'
+  TF_WORKING_DIR: 'terraform'
+
+jobs:
+  create-environment:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Validate environment name
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        if [[ ! "$ENV_NAME" =~ ^[a-z0-9-]+$ ]]; then
+          echo "❌ Environment name must contain only lowercase letters, numbers, and hyphens."
+          echo "Received: '$ENV_NAME'"
+          exit 1
+        fi
+        
+        # Check if environment already exists
+        if [ -d "terraform/envs/$ENV_NAME" ]; then
+          echo "❌ Environment '$ENV_NAME' already exists."
+          echo "Please choose a different name or delete the existing environment first."
+          exit 1
+        fi
+        
+        echo "✅ Environment name validation passed: $ENV_NAME"
+        
+    - name: Create environment directory
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        mkdir -p "terraform/envs/$ENV_NAME"
+        echo "✅ Created directory: terraform/envs/$ENV_NAME"
+        
+    - name: Generate terraform.tfvars file
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        TFVARS_FILE="terraform/envs/$ENV_NAME/terraform.tfvars"
+        
+        cat > "$TFVARS_FILE" << EOF
+# Environment Configuration for $ENV_NAME
+# Generated on $(date)
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+subscription_id = "${{ inputs.subscription_id }}"
+
+# =============================================================================
+# CORE INFRASTRUCTURE VARIABLES
+# =============================================================================
+
+project_name = "${{ inputs.project_name }}"
+environment  = "$ENV_NAME"
+location     = "${{ inputs.location }}"
+
+# =============================================================================
+# STORAGE CONFIGURATION
+# =============================================================================
+
+storage_config = {
+  tier                = "${{ inputs.storage_tier }}"
+  replication_type    = "${{ inputs.storage_replication }}"
+  enable_versioning   = ${{ inputs.enable_versioning }}
+}
+
+# =============================================================================
+# COGNITIVE SERVICES CONFIGURATION
+# =============================================================================
+
+cognitive_services_config = {
+  sku_name = "${{ inputs.cognitive_services_sku }}"
+}
+
+# =============================================================================
+# FUNCTION APP CONFIGURATION
+# =============================================================================
+
+function_app_config = {
+  sku_tier = "${{ inputs.function_app_tier }}"
+  sku_size = "${{ inputs.function_app_size }}"
+}
+
+# =============================================================================
+# APPLICATION CONFIGURATION
+# =============================================================================
+
+max_retries = ${{ inputs.max_retries }}
+
+# =============================================================================
+# TAGS CONFIGURATION
+# =============================================================================
+
+tags = {
+  Project     = "AI Image Processor"
+  Environment = "$(echo $ENV_NAME | tr '[:lower:]' '[:upper:]')"
+  ManagedBy   = "Terraform"
+  Owner       = "${{ inputs.owner }}"
+  CostCenter  = "${{ inputs.cost_center }}"
+  CreatedBy   = "GitHub Actions"
+  CreatedOn   = "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+        
+        echo "✅ Generated terraform.tfvars file: $TFVARS_FILE"
+        
+    - name: Validate generated configuration
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        TFVARS_FILE="terraform/envs/$ENV_NAME/terraform.tfvars"
+        
+        echo "## Generated Configuration" >> $GITHUB_STEP_SUMMARY
+        echo "Environment: $ENV_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "Configuration file: $TFVARS_FILE" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Configuration Preview" >> $GITHUB_STEP_SUMMARY
+        echo '```hcl' >> $GITHUB_STEP_SUMMARY
+        cat "$TFVARS_FILE" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        
+        # Validate the configuration
+        if [ -f "$TFVARS_FILE" ]; then
+          echo "✅ Configuration file created successfully"
+        else
+          echo "❌ Failed to create configuration file"
+          exit 1
+        fi
+        
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Validate Terraform configuration
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        echo "Validating Terraform configuration for environment: $ENV_NAME"
+        
+        # Initialize Terraform
+        terraform init
+        
+        # Validate the configuration
+        terraform validate
+        
+        # Plan the deployment
+        terraform plan -var-file="envs/$ENV_NAME/terraform.tfvars" -out=tfplan
+        
+        echo "✅ Terraform configuration validation passed"
+        
+    - name: Create environment summary
+      run: |
+        ENV_NAME="${{ inputs.environment_name }}"
+        echo "## Environment Creation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Environment Name: $ENV_NAME" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Project Name: ${{ inputs.project_name }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Location: ${{ inputs.location }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Configuration File: terraform/envs/$ENV_NAME/terraform.tfvars" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Terraform Validation: Passed" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "1. Review the generated configuration file" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run the 'Terraform Infrastructure' workflow to deploy the environment" >> $GITHUB_STEP_SUMMARY
+        echo "3. Or run the 'Full Deploy' workflow to deploy both infrastructure and function app" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Configuration Details" >> $GITHUB_STEP_SUMMARY
+        echo "- **Storage**: ${{ inputs.storage_tier }} (${{ inputs.storage_replication }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Cognitive Services**: ${{ inputs.cognitive_services_sku }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Function App**: ${{ inputs.function_app_tier }} (${{ inputs.function_app_size }})" >> $GITHUB_STEP_SUMMARY
+        echo "- **Max Retries**: ${{ inputs.max_retries }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Blob Versioning**: ${{ inputs.enable_versioning }}" >> $GITHUB_STEP_SUMMARY

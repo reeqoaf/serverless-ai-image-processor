@@ -1,0 +1,205 @@
+name: Full Deploy (Build + Deploy + Infrastructure)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      deploy_infrastructure:
+        description: 'Deploy infrastructure (Terraform)'
+        required: false
+        default: true
+        type: boolean
+      deploy_function:
+        description: 'Deploy function app'
+        required: false
+        default: true
+        type: boolean
+      function_app_name:
+        description: 'Function App Name (leave empty for auto-detection)'
+        required: false
+        type: string
+      auto_approve_infrastructure:
+        description: 'Auto-approve infrastructure deployment'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  PROJECT_PATH: 'src/AiImageProcessor'
+  TF_VERSION: '1.10.0'
+  TF_WORKING_DIR: 'terraform'
+
+jobs:
+  full-deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set environment variables
+      run: |
+        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "LOCATION=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    # Infrastructure Deployment
+    - name: Deploy Infrastructure
+      if: ${{ inputs.deploy_infrastructure }}
+      run: |
+        echo "## Infrastructure Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "Deploying infrastructure for environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Setup Terraform
+      if: ${{ inputs.deploy_infrastructure }}
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+        
+    - name: Validate environment configuration
+      if: ${{ inputs.deploy_infrastructure }}
+      run: |
+        TFVARS_FILE="${{ env.TF_WORKING_DIR }}/envs/${{ inputs.environment }}/terraform.tfvars"
+        if [ ! -f "$TFVARS_FILE" ]; then
+          echo "❌ Environment configuration file not found: $TFVARS_FILE"
+          echo "Please create the environment configuration file first."
+          exit 1
+        fi
+        echo "✅ Found environment configuration: $TFVARS_FILE"
+        
+    - name: Terraform Init and Apply
+      if: ${{ inputs.deploy_infrastructure }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init
+        if [ "${{ inputs.auto_approve_infrastructure }}" == "true" ]; then
+          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars" -auto-approve
+        else
+          terraform apply -var-file="envs/${{ inputs.environment }}/terraform.tfvars"
+        fi
+        echo "✅ Infrastructure deployed successfully"
+        
+    - name: Get Infrastructure Outputs
+      if: ${{ inputs.deploy_infrastructure }}
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+        terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+        
+    # Function App Deployment
+    - name: Deploy Function App
+      if: ${{ inputs.deploy_function }}
+      run: |
+        echo "## Function App Deployment" >> $GITHUB_STEP_SUMMARY
+        echo "Deploying function app for environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        
+    - name: Setup .NET
+      if: ${{ inputs.deploy_function }}
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: ${{ env.DOTNET_VERSION }}
+        
+    - name: Build and Publish Function App
+      if: ${{ inputs.deploy_function }}
+      run: |
+        dotnet restore ${{ env.PROJECT_PATH }}
+        dotnet build ${{ env.PROJECT_PATH }} --configuration Release --no-restore
+        dotnet publish ${{ env.PROJECT_PATH }} --configuration Release --output ./publish --no-build
+        echo "✅ Function app built successfully"
+        
+    - name: Get Function App Name
+      if: ${{ inputs.deploy_function }}
+      id: get-function-app-name
+      run: |
+        if [ -n "${{ inputs.function_app_name }}" ]; then
+          echo "name=${{ inputs.function_app_name }}" >> $GITHUB_OUTPUT
+        else
+          # Auto-detect function app name from Terraform state or resource group
+          RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
+          FUNCTION_APP_NAME=$(az functionapp list --resource-group $RESOURCE_GROUP --query "[0].name" -o tsv)
+          if [ -z "$FUNCTION_APP_NAME" ]; then
+            echo "❌ Function App not found in resource group: $RESOURCE_GROUP"
+            echo "Please ensure the infrastructure is deployed first or provide the function app name manually."
+            exit 1
+          fi
+          echo "name=$FUNCTION_APP_NAME" >> $GITHUB_OUTPUT
+        fi
+        echo "Function App Name: $FUNCTION_APP_NAME"
+        
+    - name: Deploy Function App
+      if: ${{ inputs.deploy_function }}
+      uses: Azure/functions-action@v1
+      with:
+        app-name: ${{ steps.get-function-app-name.outputs.name }}
+        package: ./publish
+        publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+        
+    - name: Verify Function App Deployment
+      if: ${{ inputs.deploy_function }}
+      run: |
+        FUNCTION_APP_NAME="${{ steps.get-function-app-name.outputs.name }}"
+        echo "Verifying deployment for: $FUNCTION_APP_NAME"
+        
+        # Check if function app is running
+        STATUS=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" --query "state" -o tsv)
+        echo "Function App Status: $STATUS"
+        
+        if [ "$STATUS" != "Running" ]; then
+          echo "❌ Function App is not running. Current status: $STATUS"
+          exit 1
+        fi
+        
+        # Get function app URL
+        FUNCTION_URL=$(az functionapp show --name $FUNCTION_APP_NAME --resource-group "${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg" --query "hostNames[0]" -o tsv)
+        echo "✅ Function App deployed successfully!"
+        echo "URL: https://$FUNCTION_URL"
+        
+    - name: End-to-End Verification
+      run: |
+        echo "## End-to-End Verification" >> $GITHUB_STEP_SUMMARY
+        RESOURCE_GROUP="${{ env.PROJECT_NAME }}-${{ inputs.environment }}-rg"
+        
+        # Verify resource group exists
+        if az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
+          echo "✅ Resource group exists: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ Resource group not found: $RESOURCE_GROUP" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        # List all resources
+        echo "### Resources Created" >> $GITHUB_STEP_SUMMARY
+        az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+        
+        # Verify function app
+        if [ "${{ inputs.deploy_function }}" == "true" ]; then
+          FUNCTION_APP_NAME="${{ steps.get-function-app-name.outputs.name }}"
+          if az functionapp show --name $FUNCTION_APP_NAME --resource-group $RESOURCE_GROUP > /dev/null 2>&1; then
+            echo "✅ Function app deployed: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Function app not found: $FUNCTION_APP_NAME" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        
+    - name: Full Deploy Summary
+      run: |
+        echo "## Full Deploy Summary" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Infrastructure: ${{ inputs.deploy_infrastructure && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Function App: ${{ inputs.deploy_function && 'Deployed' || 'Skipped' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Auto-approve Infrastructure: ${{ inputs.auto_approve_infrastructure }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Status: Full deployment completed successfully" >> $GITHUB_STEP_SUMMARY
