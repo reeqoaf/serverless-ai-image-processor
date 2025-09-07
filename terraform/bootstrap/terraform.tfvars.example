@@ -1,0 +1,36 @@
+# Bootstrap Terraform Variables Configuration
+# Copy this file to terraform.tfvars and update with your values
+
+# =============================================================================
+# REQUIRED VARIABLES
+# =============================================================================
+
+# Azure Subscription ID (required)
+subscription_id = "your-subscription-id-here"
+
+# =============================================================================
+# CORE INFRASTRUCTURE VARIABLES
+# =============================================================================
+
+# Project name (used for resource naming)
+project_name = "ai-image-processor"
+
+# Environment name (dev, staging, prod)
+environment = "dev"
+
+# Azure region for resources
+location = "West Europe"
+
+
+# =============================================================================
+# TAGS CONFIGURATION
+# =============================================================================
+
+tags = {
+  Project     = "AI Image Processor"
+  Environment = "Bootstrap"
+  ManagedBy   = "Terraform"
+  Owner       = "DevOps Team"
+  CostCenter  = "Infrastructure"
+  Purpose     = "Bootstrap Infrastructure"
+}

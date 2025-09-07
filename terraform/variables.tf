@@ -113,6 +113,29 @@ variable "max_retries" {
 
 
 # =============================================================================
+# SERVICE PRINCIPAL CONFIGURATION (FROM BOOTSTRAP)
+# =============================================================================
+
+variable "spn_client_id" {
+  description = "Service Principal Client ID from bootstrap"
+  type        = string
+  default     = ""
+}
+
+variable "spn_client_secret" {
+  description = "Service Principal Client Secret from bootstrap"
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "spn_tenant_id" {
+  description = "Service Principal Tenant ID from bootstrap"
+  type        = string
+  default     = ""
+}
+
+# =============================================================================
 # TAGS CONFIGURATION
 # =============================================================================
 

@@ -23,6 +23,12 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = false
     }
   }
+  
+  # Use Service Principal authentication when credentials are provided
+  # This allows the same configuration to work both locally and in GitHub Actions
+  client_id       = var.spn_client_id != "" ? var.spn_client_id : null
+  client_secret   = var.spn_client_secret != "" ? var.spn_client_secret : null
+  tenant_id       = var.spn_tenant_id != "" ? var.spn_tenant_id : null
 }
 
 provider "azuread" {

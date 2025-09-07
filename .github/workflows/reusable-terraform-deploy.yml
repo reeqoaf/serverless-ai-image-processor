@@ -56,7 +56,10 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
     - name: Set Terraform environment variables
       run: |
@@ -79,7 +82,10 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -99,7 +105,8 @@ jobs:
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
-        terraform init
+        terraform init \
+          -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
         echo "SUCCESS: Terraform initialized successfully"
         
     - name: Terraform Plan
@@ -130,7 +137,10 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        client-id: ${{ secrets.AZURE_CLIENT_ID }}
+        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -150,7 +160,8 @@ jobs:
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
-        terraform init
+        terraform init \
+          -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
         echo "SUCCESS: Terraform initialized successfully"
         
     - name: Terraform Apply
