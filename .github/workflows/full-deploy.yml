@@ -71,6 +71,15 @@ jobs:
         echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
         echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
         echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+        
+    - name: Set Azure environment variables for Terraform
+      run: |
+        echo "Setting Azure environment variables for Terraform..."
+        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "SUCCESS: Azure environment variables set"
         echo "SUCCESS: Terraform environment variables set"
         
     - name: Terraform Init and Apply
