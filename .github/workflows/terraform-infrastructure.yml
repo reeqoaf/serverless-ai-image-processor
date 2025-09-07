@@ -50,6 +50,9 @@ jobs:
         echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         echo "SUCCESS: Terraform environment variables set"
 
   plan:
@@ -80,6 +83,9 @@ jobs:
         echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
@@ -132,6 +138,9 @@ jobs:
         echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
         
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
