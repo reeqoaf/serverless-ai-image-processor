@@ -88,6 +88,11 @@ jobs:
           echo "Running Terraform Plan..."
           terraform plan -out=tfplan
           echo "SUCCESS: Terraform plan completed successfully"
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Plan summary
       run: |
@@ -156,6 +161,11 @@ jobs:
           
           echo "Getting Terraform outputs..."
           terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
     - name: Set outputs
       id: set-outputs
@@ -205,6 +215,11 @@ jobs:
           az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
           
           echo "SUCCESS: Infrastructure verification completed"
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
         
     - name: Final summary
       run: |
