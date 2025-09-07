@@ -37,41 +37,6 @@ jobs:
         echo "PROJECT_NAME=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
         echo "LOCATION=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         echo "resource-group=${{ vars.PROJECT_NAME || 'ai-image-processor' }}-${{ inputs.environment }}-rg" >> $GITHUB_OUTPUT
-        
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
-    - name: Set Terraform environment variables
-      run: |
-        echo "Setting Terraform environment variables..."
-        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
-        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        
-    - name: Set Azure environment variables for Terraform
-      run: |
-        echo "Setting Azure environment variables for Terraform..."
-        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "SUCCESS: Azure environment variables set"
-        echo "SUCCESS: Terraform environment variables set"
-        
-    - name: Set Azure environment variables for Terraform
-      run: |
-        echo "Setting Azure environment variables for Terraform..."
-        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "SUCCESS: Azure environment variables set"
 
   plan:
     runs-on: ubuntu-latest
@@ -82,50 +47,47 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TF_VERSION }}
         
-    - name: Set Terraform environment variables
-      run: |
-        echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
-        echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
-        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
-        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        
-    - name: Set Azure environment variables for Terraform
-      run: |
-        echo "Setting Azure environment variables for Terraform..."
-        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "SUCCESS: Azure environment variables set"
-        
-    - name: Terraform Init
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        terraform init \
-          -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
-        echo "SUCCESS: Terraform initialized successfully"
-        
-    - name: Terraform Plan
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        terraform plan -out=tfplan
-        echo "SUCCESS: Terraform plan completed successfully"
+    - name: Azure CLI with Service Principal
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          echo "Setting up Azure CLI with Service Principal..."
+          az login --service-principal \
+            --username ${{ secrets.AZURE_CLIENT_ID }} \
+            --password ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          
+          echo "Setting Azure environment variables for Terraform..."
+          export ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
+          export ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
+          export ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+          export ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+          echo "Setting Terraform environment variables..."
+          export TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          export TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}
+          export TF_VAR_environment=${{ inputs.environment }}
+          export TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}
+          export TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}
+          export TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}
+          export TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}
+          
+          echo "SUCCESS: All environment variables set"
+          
+          echo "Running Terraform Init..."
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform init \
+            -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
+          echo "SUCCESS: Terraform initialized successfully"
+          
+          echo "Running Terraform Plan..."
+          terraform plan -out=tfplan
+          echo "SUCCESS: Terraform plan completed successfully"
 
     - name: Plan summary
       run: |
@@ -146,60 +108,54 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Azure Login
-      uses: azure/login@v1
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
       with:
         terraform_version: ${{ env.TF_VERSION }}
         
-    - name: Set Terraform environment variables
-      run: |
-        echo "TF_VERSION=${{ env.TF_VERSION }}" >> $GITHUB_ENV
-        echo "TF_WORKING_DIR=${{ env.TF_WORKING_DIR }}" >> $GITHUB_ENV
-        echo "ENVIRONMENT=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
-        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        
-    - name: Set Azure environment variables for Terraform
-      run: |
-        echo "Setting Azure environment variables for Terraform..."
-        echo "ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}" >> $GITHUB_ENV
-        echo "ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}" >> $GITHUB_ENV
-        echo "ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}" >> $GITHUB_ENV
-        echo "ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-        echo "SUCCESS: Azure environment variables set"
-        
-    - name: Terraform Init
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        terraform init \
-          -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
-        echo "SUCCESS: Terraform initialized successfully"
-        
-    - name: Terraform Apply
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        if [ "${{ inputs.auto_approve }}" == "true" ]; then
-          terraform apply -auto-approve
-        else
-          terraform apply
-        fi
-        echo "SUCCESS: Terraform apply completed successfully"
-        
-    - name: Get Terraform outputs
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
-        terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+    - name: Azure CLI with Service Principal
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          echo "Setting up Azure CLI with Service Principal..."
+          az login --service-principal \
+            --username ${{ secrets.AZURE_CLIENT_ID }} \
+            --password ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          
+          echo "Setting Azure environment variables for Terraform..."
+          export ARM_CLIENT_ID=${{ secrets.AZURE_CLIENT_ID }}
+          export ARM_CLIENT_SECRET=${{ secrets.AZURE_CLIENT_SECRET }}
+          export ARM_TENANT_ID=${{ secrets.AZURE_TENANT_ID }}
+          export ARM_SUBSCRIPTION_ID=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          
+          echo "Setting Terraform environment variables..."
+          export TF_VAR_subscription_id=${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          export TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}
+          export TF_VAR_environment=${{ inputs.environment }}
+          export TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}
+          export TF_VAR_spn_client_id=${{ secrets.AZURE_CLIENT_ID }}
+          export TF_VAR_spn_client_secret=${{ secrets.AZURE_CLIENT_SECRET }}
+          export TF_VAR_spn_tenant_id=${{ secrets.AZURE_TENANT_ID }}
+          
+          echo "SUCCESS: All environment variables set"
+          
+          echo "Running Terraform Init..."
+          cd ${{ env.TF_WORKING_DIR }}
+          terraform init \
+            -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
+          echo "SUCCESS: Terraform initialized successfully"
+          
+          echo "Running Terraform Apply..."
+          if [ "${{ inputs.auto_approve }}" == "true" ]; then
+            terraform apply -auto-approve
+          else
+            terraform apply
+          fi
+          echo "SUCCESS: Terraform apply completed successfully"
+          
+          echo "Getting Terraform outputs..."
+          terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
 
     - name: Set outputs
       id: set-outputs
@@ -224,28 +180,31 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Azure CLI with Service Principal
+      uses: azure/CLI@v1
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-        
-    - name: Verify infrastructure
-      run: |
-        echo "## Infrastructure Verification" >> $GITHUB_STEP_SUMMARY
-        RESOURCE_GROUP="${{ needs.apply.outputs.resource_group }}"
-        echo "Verifying infrastructure in resource group: $RESOURCE_GROUP"
-        
-        # Check if resource group exists
-        if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
-          echo "ERROR: Resource group not found: $RESOURCE_GROUP"
-          exit 1
-        fi
-        
-        # List resources in the resource group
-        echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
-        az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
-        
-        echo "SUCCESS: Infrastructure verification completed"
+        inlineScript: |
+          echo "Setting up Azure CLI with Service Principal..."
+          az login --service-principal \
+            --username ${{ secrets.AZURE_CLIENT_ID }} \
+            --password ${{ secrets.AZURE_CLIENT_SECRET }} \
+            --tenant ${{ secrets.AZURE_TENANT_ID }}
+          
+          echo "Verifying infrastructure..."
+          RESOURCE_GROUP="${{ needs.apply.outputs.resource_group }}"
+          echo "Verifying infrastructure in resource group: $RESOURCE_GROUP"
+          
+          # Check if resource group exists
+          if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
+            echo "ERROR: Resource group not found: $RESOURCE_GROUP"
+            exit 1
+          fi
+          
+          # List resources in the resource group
+          echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
+          az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+          
+          echo "SUCCESS: Infrastructure verification completed"
         
     - name: Final summary
       run: |
