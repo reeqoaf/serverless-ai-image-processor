@@ -47,10 +47,13 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          }
         
     - name: Validate destroy confirmation
       run: |
@@ -98,10 +101,13 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          }
         
     - name: Destroy Function App
       run: |
@@ -136,10 +142,13 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          }
         
     - name: Destroy Infrastructure
       run: |
@@ -214,10 +223,13 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        creds: |
+          {
+            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
+            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          }
         
     - name: Post-destroy verification
       run: |
