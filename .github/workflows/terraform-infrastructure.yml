@@ -52,46 +52,43 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
         
-    - name: Azure CLI with Service Principal
-      uses: azure/CLI@v1
+    - name: Azure Login
+      uses: azure/login@v1
       with:
-        inlineScript: |
-          # Parse the AZURE_CREDENTIALS JSON secret
-          CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
-          CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
-          TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
-          SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
-          
-          # Login with Service Principal
-          az login --service-principal \
-            --username $CLIENT_ID \
-            --password $CLIENT_SECRET \
-            --tenant $TENANT_ID
-          
-          # Set Azure environment variables for Terraform
-          export ARM_CLIENT_ID=$CLIENT_ID
-          export ARM_CLIENT_SECRET=$CLIENT_SECRET
-          export ARM_TENANT_ID=$TENANT_ID
-          export ARM_SUBSCRIPTION_ID=$SUBSCRIPTION_ID
-          
-          # Set Terraform environment variables
-          export TF_VAR_subscription_id=$SUBSCRIPTION_ID
-          export TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}
-          export TF_VAR_environment=${{ inputs.environment }}
-          export TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}
-          export TF_VAR_spn_client_id=$CLIENT_ID
-          export TF_VAR_spn_client_secret=$CLIENT_SECRET
-          export TF_VAR_spn_tenant_id=$TENANT_ID
-          
-          # Install Terraform
-          wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt update && sudo apt install terraform
-          
-          # Run Terraform commands
-          cd ${{ env.TF_WORKING_DIR }}
-          terraform init -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
-          terraform plan -out=tfplan
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Set Terraform environment variables
+      run: |
+        # Parse the AZURE_CREDENTIALS JSON secret
+        CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
+        CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
+        TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
+        SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
+        
+        # Set Azure environment variables for Terraform
+        echo "ARM_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=$CLIENT_SECRET" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=$TENANT_ID" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+        
+        # Set Terraform environment variables
+        echo "TF_VAR_subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_id=$CLIENT_ID" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_secret=$CLIENT_SECRET" >> $GITHUB_ENV
+        echo "TF_VAR_spn_tenant_id=$TENANT_ID" >> $GITHUB_ENV
+        
+    - name: Terraform Init
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
+        
+    - name: Terraform Plan
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform plan -out=tfplan
 
     - name: Plan summary
       run: |
@@ -117,54 +114,53 @@ jobs:
       with:
         terraform_version: ${{ env.TF_VERSION }}
         
-    - name: Azure CLI with Service Principal
-      uses: azure/CLI@v1
+    - name: Azure Login
+      uses: azure/login@v1
       with:
-        inlineScript: |
-          # Parse the AZURE_CREDENTIALS JSON secret
-          CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
-          CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
-          TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
-          SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
-          
-          # Login with Service Principal
-          az login --service-principal \
-            --username $CLIENT_ID \
-            --password $CLIENT_SECRET \
-            --tenant $TENANT_ID
-          
-          # Set Azure environment variables for Terraform
-          export ARM_CLIENT_ID=$CLIENT_ID
-          export ARM_CLIENT_SECRET=$CLIENT_SECRET
-          export ARM_TENANT_ID=$TENANT_ID
-          export ARM_SUBSCRIPTION_ID=$SUBSCRIPTION_ID
-          
-          # Set Terraform environment variables
-          export TF_VAR_subscription_id=$SUBSCRIPTION_ID
-          export TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}
-          export TF_VAR_environment=${{ inputs.environment }}
-          export TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}
-          export TF_VAR_spn_client_id=$CLIENT_ID
-          export TF_VAR_spn_client_secret=$CLIENT_SECRET
-          export TF_VAR_spn_tenant_id=$TENANT_ID
-          
-          # Install Terraform
-          wget -O- https://apt.releases.hashicorp.com/gpg | gpg --dearmor | sudo tee /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          sudo apt update && sudo apt install terraform
-          
-          # Run Terraform commands
-          cd ${{ env.TF_WORKING_DIR }}
-          terraform init -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
-          
-          if [ "${{ inputs.auto_approve }}" == "true" ]; then
-            terraform apply -auto-approve
-          else
-            terraform apply
-          fi
-          
-          # Get Terraform outputs
-          terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Set Terraform environment variables
+      run: |
+        # Parse the AZURE_CREDENTIALS JSON secret
+        CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
+        CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
+        TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
+        SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
+        
+        # Set Azure environment variables for Terraform
+        echo "ARM_CLIENT_ID=$CLIENT_ID" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=$CLIENT_SECRET" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=$TENANT_ID" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+        
+        # Set Terraform environment variables
+        echo "TF_VAR_subscription_id=$SUBSCRIPTION_ID" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ vars.PROJECT_NAME || 'ai-image-processor' }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_id=$CLIENT_ID" >> $GITHUB_ENV
+        echo "TF_VAR_spn_client_secret=$CLIENT_SECRET" >> $GITHUB_ENV
+        echo "TF_VAR_spn_tenant_id=$TENANT_ID" >> $GITHUB_ENV
+        
+    - name: Terraform Init
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        terraform init -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
+        
+    - name: Terraform Apply
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        if [ "${{ inputs.auto_approve }}" == "true" ]; then
+          terraform apply -auto-approve
+        else
+          terraform apply
+        fi
+        
+    - name: Get Terraform outputs
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        echo "## Infrastructure Outputs" >> $GITHUB_STEP_SUMMARY
+        terraform output -json | jq -r 'to_entries[] | "- **\(.key)**: \(.value.value)"' >> $GITHUB_STEP_SUMMARY
 
     - name: Set outputs
       id: set-outputs
@@ -189,34 +185,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Azure CLI with Service Principal
-      uses: azure/CLI@v1
+    - name: Azure Login
+      uses: azure/login@v1
       with:
-        inlineScript: |
-          # Parse the AZURE_CREDENTIALS JSON secret
-          CLIENT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientId')
-          CLIENT_SECRET=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')
-          TENANT_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.tenantId')
-          SUBSCRIPTION_ID=$(echo '${{ secrets.AZURE_CREDENTIALS }}' | jq -r '.subscriptionId')
-          
-          # Login with Service Principal
-          az login --service-principal \
-            --username $CLIENT_ID \
-            --password $CLIENT_SECRET \
-            --tenant $TENANT_ID
-          
-          # Verify infrastructure
-          RESOURCE_GROUP="${{ needs.apply.outputs.resource_group }}"
-          
-          # Check if resource group exists
-          if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
-            echo "ERROR: Resource group not found: $RESOURCE_GROUP"
-            exit 1
-          fi
-          
-          # List resources in the resource group
-          echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
-          az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+        
+    - name: Verify infrastructure
+      run: |
+        RESOURCE_GROUP="${{ needs.apply.outputs.resource_group }}"
+        
+        # Check if resource group exists
+        if ! az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
+          echo "ERROR: Resource group not found: $RESOURCE_GROUP"
+          exit 1
+        fi
+        
+        # List resources in the resource group
+        echo "## Resources Created" >> $GITHUB_STEP_SUMMARY
+        az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
         
     - name: Final summary
       run: |
