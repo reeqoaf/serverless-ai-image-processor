@@ -136,6 +136,26 @@ variable "spn_tenant_id" {
 }
 
 # =============================================================================
+# BACKEND CONFIGURATION
+# =============================================================================
+
+variable "backend_config" {
+  description = "Backend configuration for remote state storage"
+  type = object({
+    resource_group_name  = string
+    storage_account_name = string
+    container_name       = string
+    key                  = string
+  })
+  default = {
+    resource_group_name  = ""
+    storage_account_name = ""
+    container_name       = ""
+    key                  = ""
+  }
+}
+
+# =============================================================================
 # TAGS CONFIGURATION
 # =============================================================================
 

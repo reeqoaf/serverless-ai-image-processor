@@ -24,8 +24,6 @@ resource "azurerm_storage_container" "images" {
   container_access_type = "private"
 }
 
-# Only images container needed - processed/failed status handled via metadata
-
 resource "azurerm_storage_container" "function_app" {
   name                  = "azure-webjobs-storage"
   storage_account_id    = azurerm_storage_account.main.id

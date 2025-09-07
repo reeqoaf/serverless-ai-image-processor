@@ -26,9 +26,6 @@ resource "azurerm_role_assignment" "spn_storage_blob_data_contributor" {
   principal_id         = azuread_service_principal.main.object_id
 }
 
-# Note: CosmosDB will use connection string instead of RBAC for simplicity
-
-# Grant SPN access to Computer Vision
 resource "azurerm_role_assignment" "spn_cognitive_services_user" {
   scope                = var.cognitive_services_id
   role_definition_name = "Cognitive Services User"

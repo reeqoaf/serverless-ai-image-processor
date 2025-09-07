@@ -49,7 +49,15 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        terraform init
+        # Parse the TF_BACKEND_CONFIG JSON secret
+        RESOURCE_GROUP=$(echo '${{ secrets.TF_BACKEND_CONFIG }}' | jq -r '.resource_group_name')
+        STORAGE_ACCOUNT=$(echo '${{ secrets.TF_BACKEND_CONFIG }}' | jq -r '.storage_account_name')
+        CONTAINER=$(echo '${{ secrets.TF_BACKEND_CONFIG }}' | jq -r '.container_name')
+        
+        terraform init -backend-config="resource_group_name=$RESOURCE_GROUP" \
+                      -backend-config="storage_account_name=$STORAGE_ACCOUNT" \
+                      -backend-config="container_name=$CONTAINER" \
+                      -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
         echo "SUCCESS: Terraform initialized successfully"
         
     - name: Terraform Validate

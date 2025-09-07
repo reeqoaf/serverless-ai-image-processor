@@ -374,6 +374,14 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Terraform sensitive files (additional protection)
+terraform/envs/*/terraform.tfvars
+terraform/bootstrap/terraform.tfvars
+terraform/terraform.tfvars
+
+# Allow .env for local development (but not commit it)
+terraform/.env
+
 # Environment variables
 .env
 .env.local

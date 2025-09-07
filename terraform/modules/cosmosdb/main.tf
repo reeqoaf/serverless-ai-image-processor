@@ -41,7 +41,6 @@ resource "azurerm_cosmosdb_sql_container" "images" {
   account_name        = azurerm_cosmosdb_account.main.name
   database_name       = azurerm_cosmosdb_sql_database.main.name
   partition_key_paths = ["/partitionKey"]
-  # No throughput specified - uses serverless mode
 
   indexing_policy {
     indexing_mode = "consistent"

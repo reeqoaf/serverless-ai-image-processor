@@ -24,8 +24,6 @@ provider "azurerm" {
     }
   }
   
-  # Use Service Principal authentication when credentials are provided
-  # This allows the same configuration to work both locally and in GitHub Actions
   client_id       = var.spn_client_id != "" ? var.spn_client_id : null
   client_secret   = var.spn_client_secret != "" ? var.spn_client_secret : null
   tenant_id       = var.spn_tenant_id != "" ? var.spn_tenant_id : null
@@ -38,7 +36,6 @@ provider "azuread" {
 }
 
 data "azurerm_client_config" "current" {
-  # Only use this data source when not using SPN authentication
   count = var.spn_client_id != "" ? 0 : 1
 }
 
@@ -86,7 +83,6 @@ module "cognitive_services" {
 
   tags = var.tags
 
-  # Ensure the service is created before the function app
   depends_on = [azurerm_resource_group.main]
 }
 
@@ -118,7 +114,6 @@ module "function_app" {
   computer_vision_api_key     = module.cognitive_services.computer_vision_api_key
   max_retries                 = var.max_retries
   
-  # SPN credentials from Terraform-created SPN
   spn_client_id               = module.spn.spn_client_id
   spn_client_secret           = module.spn.spn_client_secret
   spn_tenant_id               = module.spn.spn_tenant_id
