@@ -180,6 +180,9 @@ jobs:
     - name: Terraform Apply
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
+        # Remove any existing plan file to avoid variable mismatch
+        rm -f tfplan
+        
         if [ "${{ inputs.auto_approve }}" == "true" ]; then
           terraform apply -auto-approve -lock-timeout=5m
         else
