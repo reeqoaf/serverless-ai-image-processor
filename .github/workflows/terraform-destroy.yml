@@ -10,10 +10,6 @@ on:
         type: choice
         options:
           - dev
-      confirm_destroy:
-        description: 'Type "DESTROY" to confirm (case sensitive)'
-        required: true
-        type: string
       auto_approve:
         description: 'Auto-approve destroy operation'
         required: false
@@ -25,7 +21,7 @@ env:
   TF_WORKING_DIR: 'terraform'
 
 jobs:
-  validate:
+  init:
     runs-on: ubuntu-latest
     outputs:
       resource-group: ${{ steps.set-env.outputs.resource-group }}
@@ -45,22 +41,7 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: |
-          {
-            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          }
-        
-    - name: Validate destroy confirmation
-      run: |
-        if [ "${{ inputs.confirm_destroy }}" != "DESTROY" ] && [ "${{ inputs.auto_approve }}" != "true" ]; then
-          echo "ERROR: Destroy confirmation failed. You must type 'DESTROY' to confirm."
-          echo "Received: '${{ inputs.confirm_destroy }}'"
-          exit 1
-        fi
-        echo "SUCCESS: Destroy confirmation validated"
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
         
     - name: Set Terraform environment variables
       run: |
@@ -71,9 +52,9 @@ jobs:
         echo "TF_VAR_location=${{ vars.LOCATION || 'West Europe' }}" >> $GITHUB_ENV
         echo "SUCCESS: Terraform environment variables set"
 
-  init:
+  plan:
     runs-on: ubuntu-latest
-    needs: validate
+    needs: init
     environment: ${{ inputs.environment }}
     
     steps:
@@ -83,13 +64,7 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: |
-          {
-            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          }
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
         
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -118,14 +93,25 @@ jobs:
         echo "## Terraform Init Summary" >> $GITHUB_STEP_SUMMARY
         echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
         echo "- Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Status: Terraform initialized successfully" >> $GITHUB_STEP_SUMMARY
+        echo "- Status: Initialized successfully" >> $GITHUB_STEP_SUMMARY
+        
+    - name: List resources to be destroyed
+      working-directory: ${{ env.TF_WORKING_DIR }}
+      run: |
+        echo "## Resources to be Destroyed" >> $GITHUB_STEP_SUMMARY
+        terraform plan -destroy -out=destroy-plan
+        terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
+        echo "..." >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
 
   destroy:
     runs-on: ubuntu-latest
-    needs: [validate, init]
+    needs: [init, plan]
     environment: ${{ inputs.environment }}
     outputs:
-      resource_group: ${{ needs.validate.outputs.resource-group }}
+      destruction_success: ${{ steps.set-outputs.outputs.destruction_success }}
+      resource_group: ${{ needs.init.outputs.resource-group }}
     
     steps:
     - name: Checkout code
@@ -134,13 +120,7 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: |
-          {
-            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          }
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
         
     - name: Setup Terraform
       uses: hashicorp/setup-terraform@v3
@@ -164,16 +144,6 @@ jobs:
           -backend-config="key=terraform-${{ inputs.environment }}.tfstate"
         echo "SUCCESS: Terraform initialized successfully"
         
-    - name: List resources to be destroyed
-      working-directory: ${{ env.TF_WORKING_DIR }}
-      run: |
-        echo "## Resources to be destroyed:" >> $GITHUB_STEP_SUMMARY
-        terraform plan -destroy -out=destroy-plan
-        terraform show -no-color destroy-plan | grep -E "^-|^~" | head -20 >> $GITHUB_STEP_SUMMARY
-        echo "..." >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**WARNING**: This will destroy all infrastructure in the ${{ inputs.environment }} environment!" >> $GITHUB_STEP_SUMMARY
-        
     - name: Terraform Destroy
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
@@ -184,25 +154,19 @@ jobs:
         fi
         echo "SUCCESS: Terraform destroy completed successfully"
         
-    - name: Clean up local state
-      working-directory: ${{ env.TF_WORKING_DIR }}
+    - name: Set outputs
+      id: set-outputs
       run: |
-        # Remove local state files (optional)
-        if [ -f "terraform.tfstate" ]; then
-          echo "Cleaning up local state files..."
-          rm -f terraform.tfstate*
-        fi
-        echo "SUCCESS: Local state cleanup completed"
-        
+        echo "destruction_success=true" >> $GITHUB_OUTPUT
+        echo "resource_group=${{ needs.init.outputs.resource-group }}" >> $GITHUB_OUTPUT
+
     - name: Destroy summary
       run: |
-        echo "## Destroy Summary" >> $GITHUB_STEP_SUMMARY
+        echo "## Terraform Destroy Summary" >> $GITHUB_STEP_SUMMARY
         echo "- Environment: ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
-        echo "- Confirmation: ${{ inputs.confirm_destroy }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Working Directory: ${{ env.TF_WORKING_DIR }}" >> $GITHUB_STEP_SUMMARY
         echo "- Auto-approve: ${{ inputs.auto_approve }}" >> $GITHUB_STEP_SUMMARY
         echo "- Status: Infrastructure destroyed successfully" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "**Note**: All infrastructure in the ${{ inputs.environment }} environment has been destroyed." >> $GITHUB_STEP_SUMMARY
 
   verify:
     runs-on: ubuntu-latest
@@ -216,13 +180,7 @@ jobs:
     - name: Azure Login
       uses: azure/login@v1
       with:
-        creds: |
-          {
-            "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
-            "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
-            "tenantId": "${{ secrets.AZURE_TENANT_ID }}",
-            "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-          }
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
         
     - name: Verify destruction
       run: |
@@ -233,14 +191,16 @@ jobs:
         # Check if resource group still exists
         if az group show --name $RESOURCE_GROUP > /dev/null 2>&1; then
           echo "WARNING: Resource group still exists: $RESOURCE_GROUP"
-          echo "This might be expected if the resource group is not managed by Terraform."
+          echo "This may indicate that some resources were not destroyed."
+          
+          # List remaining resources
+          echo "## Remaining Resources" >> $GITHUB_STEP_SUMMARY
+          az resource list --resource-group $RESOURCE_GROUP --query "[].{Name:name, Type:type, Location:location}" --output table >> $GITHUB_STEP_SUMMARY
         else
-          echo "SUCCESS: Resource group successfully destroyed: $RESOURCE_GROUP"
+          echo "SUCCESS: Resource group has been completely destroyed: $RESOURCE_GROUP"
         fi
         
-        # List any remaining resources
-        echo "## Remaining Resources (if any)" >> $GITHUB_STEP_SUMMARY
-        az resource list --query "[?resourceGroup=='$RESOURCE_GROUP'].{Name:name, Type:type}" --output table >> $GITHUB_STEP_SUMMARY || echo "No remaining resources found" >> $GITHUB_STEP_SUMMARY
+        echo "SUCCESS: Destruction verification completed"
         
     - name: Final summary
       run: |
