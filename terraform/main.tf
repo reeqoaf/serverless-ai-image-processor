@@ -32,10 +32,15 @@ provider "azurerm" {
 }
 
 provider "azuread" {
-  tenant_id = data.azurerm_client_config.current.tenant_id
+  tenant_id = var.spn_tenant_id != "" ? var.spn_tenant_id : (length(data.azurerm_client_config.current) > 0 ? data.azurerm_client_config.current[0].tenant_id : null)
+  client_id = var.spn_client_id != "" ? var.spn_client_id : null
+  client_secret = var.spn_client_secret != "" ? var.spn_client_secret : null
 }
 
-data "azurerm_client_config" "current" {}
+data "azurerm_client_config" "current" {
+  # Only use this data source when not using SPN authentication
+  count = var.spn_client_id != "" ? 0 : 1
+}
 
 resource "azurerm_resource_group" "main" {
   name     = "${var.project_name}-${var.environment}-rg"
