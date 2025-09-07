@@ -80,6 +80,13 @@ jobs:
         echo "TF_VAR_spn_client_secret=$CLIENT_SECRET" >> $GITHUB_ENV
         echo "TF_VAR_spn_tenant_id=$TENANT_ID" >> $GITHUB_ENV
         
+        # Set complex object variables as JSON
+        echo 'TF_VAR_storage_config={"tier":"Standard","replication_type":"LRS","enable_versioning":false}' >> $GITHUB_ENV
+        echo 'TF_VAR_cognitive_services_config={"sku_name":"F0"}' >> $GITHUB_ENV
+        echo 'TF_VAR_function_app_config={"sku_tier":"Consumption","sku_size":"Y1"}' >> $GITHUB_ENV
+        echo "TF_VAR_max_retries=3" >> $GITHUB_ENV
+        echo 'TF_VAR_tags={"Project":"AI Image Processor","Environment":"Development","ManagedBy":"Terraform","Owner":"Dev Team","CostCenter":"R&D"}' >> $GITHUB_ENV
+        
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
@@ -96,7 +103,7 @@ jobs:
     - name: Terraform Plan
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
-        terraform plan -out=tfplan
+        terraform plan -out=tfplan -lock-timeout=5m
 
     - name: Plan summary
       run: |
@@ -150,6 +157,13 @@ jobs:
         echo "TF_VAR_spn_client_secret=$CLIENT_SECRET" >> $GITHUB_ENV
         echo "TF_VAR_spn_tenant_id=$TENANT_ID" >> $GITHUB_ENV
         
+        # Set complex object variables as JSON
+        echo 'TF_VAR_storage_config={"tier":"Standard","replication_type":"LRS","enable_versioning":false}' >> $GITHUB_ENV
+        echo 'TF_VAR_cognitive_services_config={"sku_name":"F0"}' >> $GITHUB_ENV
+        echo 'TF_VAR_function_app_config={"sku_tier":"Consumption","sku_size":"Y1"}' >> $GITHUB_ENV
+        echo "TF_VAR_max_retries=3" >> $GITHUB_ENV
+        echo 'TF_VAR_tags={"Project":"AI Image Processor","Environment":"Development","ManagedBy":"Terraform","Owner":"Dev Team","CostCenter":"R&D"}' >> $GITHUB_ENV
+        
     - name: Terraform Init
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
@@ -167,9 +181,9 @@ jobs:
       working-directory: ${{ env.TF_WORKING_DIR }}
       run: |
         if [ "${{ inputs.auto_approve }}" == "true" ]; then
-          terraform apply -auto-approve
+          terraform apply -auto-approve -lock-timeout=5m
         else
-          terraform apply
+          terraform apply -lock-timeout=5m
         fi
         
     - name: Get Terraform outputs

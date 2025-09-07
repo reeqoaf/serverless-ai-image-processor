@@ -1,3 +1,9 @@
+resource "random_string" "suffix" {
+  length  = 6
+  special = false
+  upper   = false
+}
+
 resource "azurerm_cognitive_account" "computer_vision" {
   name                = "${var.project_name}-${var.environment}-cv-${random_string.suffix.result}"
   location            = var.location
