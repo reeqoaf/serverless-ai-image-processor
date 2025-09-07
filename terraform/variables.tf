@@ -52,7 +52,6 @@ variable "storage_config" {
     replication_type    = string
     enable_versioning   = bool
   })
-  ephemeral = true
   validation {
     condition = contains(["Standard", "Premium"], var.storage_config.tier)
     error_message = "Storage tier must be either Standard or Premium."
@@ -72,7 +71,6 @@ variable "cognitive_services_config" {
   type = object({
     sku_name = string
   })
-  ephemeral = true
   validation {
     condition = contains(["F0", "S0", "S1", "S2", "S3", "S4", "S5", "S6"], var.cognitive_services_config.sku_name)
     error_message = "Cognitive Services SKU must be one of: F0, S0, S1, S2, S3, S4, S5, S6."
@@ -89,7 +87,6 @@ variable "function_app_config" {
     sku_tier = string
     sku_size = string
   })
-  ephemeral = true
   validation {
     condition = contains(["Consumption", "Basic", "Standard", "Premium"], var.function_app_config.sku_tier)
     error_message = "SKU tier must be one of: Consumption, Basic, Standard, Premium."
@@ -165,5 +162,4 @@ variable "backend_config" {
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
-  ephemeral   = true
 }
