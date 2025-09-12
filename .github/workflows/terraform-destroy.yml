@@ -144,6 +144,7 @@ jobs:
           terraform-version: ${{ env.TF_VERSION }}
           backend-config: ${{ env.TF_BACKEND_CONFIG }}
           working-directory: './terraform'
+          environment: ${{ github.event.inputs.environment }}
 
       - name: Terraform Destroy
         uses: ./.github/actions/terraform-destroy

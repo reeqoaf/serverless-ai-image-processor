@@ -12,6 +12,9 @@ inputs:
     description: 'Working directory for Terraform commands'
     required: false
     default: './terraform'
+  environment:
+    description: 'Environment name for state file key'
+    required: true
 
 runs:
   using: 'composite'
@@ -32,7 +35,8 @@ runs:
         BACKEND_ARGS+=("-backend-config=resource_group_name=$(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')")
         BACKEND_ARGS+=("-backend-config=storage_account_name=$(echo '${{ inputs.backend-config }}' | jq -r '.storage_account_name')")
         BACKEND_ARGS+=("-backend-config=container_name=$(echo '${{ inputs.backend-config }}' | jq -r '.container_name')")
-        BACKEND_ARGS+=("-backend-config=key=$(echo '${{ inputs.backend-config }}' | jq -r '.key')")
+        # Use environment-specific state file key
+        BACKEND_ARGS+=("-backend-config=key=terraform-${{ inputs.environment }}.tfstate")
         
         terraform init "${BACKEND_ARGS[@]}"
         echo "SUCCESS: Terraform initialized successfully"
