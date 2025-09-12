@@ -58,6 +58,42 @@ jobs:
               ;;
           esac
           
+          # Validate all required environment variables are present
+          echo "Validating environment variables for $ENVIRONMENT..."
+          
+          MISSING_VARS=()
+          
+          # Check each variable individually
+          if [ -z "${{ vars.DEV_SUBSCRIPTION_ID }}" ]; then MISSING_VARS+=("DEV_SUBSCRIPTION_ID"); fi
+          if [ -z "${{ vars.DEV_PROJECT_NAME }}" ]; then MISSING_VARS+=("DEV_PROJECT_NAME"); fi
+          if [ -z "${{ vars.DEV_ENVIRONMENT }}" ]; then MISSING_VARS+=("DEV_ENVIRONMENT"); fi
+          if [ -z "${{ vars.DEV_LOCATION }}" ]; then MISSING_VARS+=("DEV_LOCATION"); fi
+          if [ -z "${{ vars.DEV_STORAGE_TIER }}" ]; then MISSING_VARS+=("DEV_STORAGE_TIER"); fi
+          if [ -z "${{ vars.DEV_STORAGE_REPLICATION_TYPE }}" ]; then MISSING_VARS+=("DEV_STORAGE_REPLICATION_TYPE"); fi
+          if [ -z "${{ vars.DEV_STORAGE_ENABLE_VERSIONING }}" ]; then MISSING_VARS+=("DEV_STORAGE_ENABLE_VERSIONING"); fi
+          if [ -z "${{ vars.DEV_COGNITIVE_SERVICES_SKU }}" ]; then MISSING_VARS+=("DEV_COGNITIVE_SERVICES_SKU"); fi
+          if [ -z "${{ vars.DEV_FUNCTION_APP_SKU_TIER }}" ]; then MISSING_VARS+=("DEV_FUNCTION_APP_SKU_TIER"); fi
+          if [ -z "${{ vars.DEV_FUNCTION_APP_SKU_SIZE }}" ]; then MISSING_VARS+=("DEV_FUNCTION_APP_SKU_SIZE"); fi
+          if [ -z "${{ vars.DEV_MAX_RETRIES }}" ]; then MISSING_VARS+=("DEV_MAX_RETRIES"); fi
+          if [ -z "${{ vars.DEV_TAGS_PROJECT }}" ]; then MISSING_VARS+=("DEV_TAGS_PROJECT"); fi
+          if [ -z "${{ vars.DEV_TAGS_ENVIRONMENT }}" ]; then MISSING_VARS+=("DEV_TAGS_ENVIRONMENT"); fi
+          if [ -z "${{ vars.DEV_TAGS_MANAGED_BY }}" ]; then MISSING_VARS+=("DEV_TAGS_MANAGED_BY"); fi
+          if [ -z "${{ vars.DEV_TAGS_OWNER }}" ]; then MISSING_VARS+=("DEV_TAGS_OWNER"); fi
+          if [ -z "${{ vars.DEV_TAGS_COST_CENTER }}" ]; then MISSING_VARS+=("DEV_TAGS_COST_CENTER"); fi
+          
+          if [ ${#MISSING_VARS[@]} -gt 0 ]; then
+            echo ""
+            echo "ERROR: Missing required environment variables:"
+            printf '  - %s\n' "${MISSING_VARS[@]}"
+            echo ""
+            echo "Please ensure all environment variables are configured in GitHub:"
+            echo "Settings > Secrets and variables > Actions > Environment variables > $ENVIRONMENT"
+            exit 1
+          fi
+          
+          echo ""
+          echo "SUCCESS: All required environment variables are present and configured"
+          
           # Validate destroy confirmation
           if [ "$CONFIRM" != "DESTROY" ]; then
             echo "ERROR: Destroy confirmation failed"
