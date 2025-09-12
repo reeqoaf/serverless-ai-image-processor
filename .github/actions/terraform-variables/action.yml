@@ -47,9 +47,6 @@ inputs:
   tags-project:
     description: 'Project tag value'
     required: true
-  tags-environment:
-    description: 'Environment tag value'
-    required: true
   tags-managed-by:
     description: 'ManagedBy tag value'
     required: true
@@ -81,7 +78,7 @@ runs:
         echo "TF_VAR_function_app_config_sku_size=${{ inputs.function-app-sku-size }}" >> $GITHUB_ENV
         echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
         echo "TF_VAR_tags_Project=${{ inputs.tags-project }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_Environment=${{ inputs.tags-environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_Environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_tags_ManagedBy=${{ inputs.tags-managed-by }}" >> $GITHUB_ENV
         echo "TF_VAR_tags_Owner=${{ inputs.tags-owner }}" >> $GITHUB_ENV
         echo "TF_VAR_tags_CostCenter=${{ inputs.tags-cost-center }}" >> $GITHUB_ENV
