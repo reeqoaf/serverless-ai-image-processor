@@ -1,0 +1,64 @@
+name: 'Terraform Execute'
+description: 'Execute Terraform plan or apply operations'
+inputs:
+  action:
+    description: 'Terraform action to execute (plan, apply)'
+    required: true
+  working-directory:
+    description: 'Working directory for Terraform commands'
+    required: false
+    default: './terraform'
+  auto-approve:
+    description: 'Auto-approve for apply and destroy operations'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Terraform Plan
+      if: inputs.action == 'plan'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Creating Terraform plan..."
+        terraform plan -out=tfplan
+        echo "SUCCESS: Terraform plan created successfully"
+
+    - name: Terraform Plan Output
+      if: inputs.action == 'plan'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Terraform Plan Summary:"
+        terraform show -no-color tfplan
+
+    - name: Terraform Apply
+      if: inputs.action == 'apply'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Applying Terraform changes..."
+        if [ -f tfplan ]; then
+          terraform apply -auto-approve tfplan
+        else
+          terraform apply -auto-approve
+        fi
+        echo "SUCCESS: Terraform apply completed successfully"
+
+    - name: Terraform Output
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Terraform Outputs:"
+        terraform output -json | jq -r 'to_entries[] | "\(.key): \(.value.value)"'
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Cleaning up temporary files..."
+        rm -f tfplan
+        echo "SUCCESS: Cleanup completed"

@@ -1,0 +1,46 @@
+name: 'Terraform Setup'
+description: 'Setup Terraform with specified version and initialize with backend configuration'
+inputs:
+  terraform-version:
+    description: 'Terraform version to install'
+    required: true
+    default: '1.10.0'
+  backend-config:
+    description: 'Terraform backend configuration'
+    required: true
+  working-directory:
+    description: 'Working directory for Terraform commands'
+    required: false
+    default: './terraform'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ inputs.terraform-version }}
+
+    - name: Terraform Init
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Initializing Terraform..."
+        terraform init -backend-config="${{ inputs.backend-config }}"
+        echo "SUCCESS: Terraform initialized successfully"
+
+    - name: Terraform Format Check
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Checking Terraform formatting..."
+        terraform fmt -check -recursive
+        echo "SUCCESS: Terraform formatting is correct"
+
+    - name: Terraform Validate
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Validating Terraform configuration..."
+        terraform validate
+        echo "SUCCESS: Terraform configuration is valid"

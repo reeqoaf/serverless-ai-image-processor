@@ -1,0 +1,41 @@
+name: 'Azure Login'
+description: 'Authenticate to Azure using Service Principal credentials'
+inputs:
+  azure-credentials:
+    description: 'Azure Service Principal credentials (JSON format)'
+    required: true
+  subscription-id:
+    description: 'Azure Subscription ID (optional, will use from credentials if not provided)'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Parse Azure credentials
+      id: parse-credentials
+      shell: bash
+      run: |
+        echo "Parsing Azure credentials..."
+        echo "client_id=$(echo '${{ inputs.azure-credentials }}' | jq -r '.clientId')" >> $GITHUB_OUTPUT
+        echo "client_secret=$(echo '${{ inputs.azure-credentials }}' | jq -r '.clientSecret')" >> $GITHUB_OUTPUT
+        echo "tenant_id=$(echo '${{ inputs.azure-credentials }}' | jq -r '.tenantId')" >> $GITHUB_OUTPUT
+        echo "subscription_id=$(echo '${{ inputs.azure-credentials }}' | jq -r '.subscriptionId')" >> $GITHUB_OUTPUT
+
+    - name: Login to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ inputs.azure-credentials }}
+
+    - name: Set subscription context
+      if: inputs.subscription-id != ''
+      shell: bash
+      run: |
+        echo "Setting subscription context to: ${{ inputs.subscription-id }}"
+        az account set --subscription "${{ inputs.subscription-id }}"
+
+    - name: Display Azure context
+      shell: bash
+      run: |
+        echo "Current Azure context:"
+        az account show --query "{subscriptionId: id, subscriptionName: name, tenantId: tenantId}" --output table

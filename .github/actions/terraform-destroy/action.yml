@@ -1,0 +1,31 @@
+name: 'Terraform Destroy'
+description: 'Execute Terraform destroy operation'
+inputs:
+  working-directory:
+    description: 'Working directory for Terraform commands'
+    required: false
+    default: './terraform'
+  auto-approve:
+    description: 'Auto-approve for destroy operations'
+    required: false
+    default: 'true'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Terraform Destroy
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "WARNING: Destroying Terraform resources..."
+        terraform destroy -auto-approve
+        echo "SUCCESS: Terraform destroy completed"
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        echo "Cleaning up temporary files..."
+        rm -f tfplan
+        echo "SUCCESS: Cleanup completed"

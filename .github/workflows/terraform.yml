@@ -1,0 +1,108 @@
+name: Terraform Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+
+env:
+  TF_VERSION: '1.10.0'
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  TF_BACKEND_CONFIG: ${{ secrets.TF_BACKEND_CONFIG }}
+
+jobs:
+  validate-inputs:
+    name: Validate Inputs
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.validate.outputs.environment }}
+    steps:
+      - name: Validate Required Secrets
+        run: |
+          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
+            echo "ERROR: AZURE_CREDENTIALS secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.TF_BACKEND_CONFIG }}" ]; then
+            echo "ERROR: TF_BACKEND_CONFIG secret is not set"
+            exit 1
+          fi
+          echo "SUCCESS: All required secrets are present"
+
+      - name: Validate Environment Variables
+        id: validate
+        run: |
+          ENVIRONMENT="${{ github.event.inputs.environment }}"
+          
+          # Validate environment
+          case "$ENVIRONMENT" in
+            dev)
+              echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
+              echo "SUCCESS: Environment '$ENVIRONMENT' is valid"
+              ;;
+            *)
+              echo "ERROR: Invalid environment: $ENVIRONMENT"
+              echo "Supported environments: dev"
+              exit 1
+              ;;
+          esac
+
+  terraform-deploy:
+    name: Terraform Deploy
+    needs: validate-inputs
+    runs-on: ubuntu-latest
+    environment: ${{ needs.validate-inputs.outputs.environment }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: ./.github/actions/azure-login
+        with:
+          azure-credentials: ${{ env.AZURE_CREDENTIALS }}
+
+      - name: Parse Azure credentials for Terraform
+        id: parse-azure-creds
+        run: |
+          echo "Parsing Azure credentials for Terraform from repository secrets..."
+          # Parse SPN credentials from AZURE_CREDENTIALS secret (JSON format)
+          echo "spn_client_id=$(echo '${{ env.AZURE_CREDENTIALS }}' | jq -r '.clientId')" >> $GITHUB_OUTPUT
+          echo "spn_client_secret=$(echo '${{ env.AZURE_CREDENTIALS }}' | jq -r '.clientSecret')" >> $GITHUB_OUTPUT
+          echo "spn_tenant_id=$(echo '${{ env.AZURE_CREDENTIALS }}' | jq -r '.tenantId')" >> $GITHUB_OUTPUT
+          echo "SUCCESS: SPN credentials parsed from repository secrets"
+
+      - name: Set Terraform Variables
+        uses: ./.github/actions/terraform-variables
+        with:
+          environment: ${{ needs.validate-inputs.outputs.environment }}
+          spn-client-id: ${{ steps.parse-azure-creds.outputs.spn_client_id }}
+          spn-client-secret: ${{ steps.parse-azure-creds.outputs.spn_client_secret }}
+          spn-tenant-id: ${{ steps.parse-azure-creds.outputs.spn_tenant_id }}
+
+      - name: Terraform Setup
+        uses: ./.github/actions/terraform-setup
+        with:
+          terraform-version: ${{ env.TF_VERSION }}
+          backend-config: ${{ env.TF_BACKEND_CONFIG }}
+          working-directory: './terraform'
+
+      - name: Terraform Plan
+        uses: ./.github/actions/terraform-execute
+        with:
+          action: 'plan'
+          working-directory: './terraform'
+          auto-approve: 'true'
+
+      - name: Terraform Apply
+        uses: ./.github/actions/terraform-execute
+        with:
+          action: 'apply'
+          working-directory: './terraform'
+          auto-approve: 'true'
