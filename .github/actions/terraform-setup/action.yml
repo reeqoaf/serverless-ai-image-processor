@@ -26,7 +26,18 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         echo "Initializing Terraform..."
-        terraform init -backend-config="${{ inputs.backend-config }}"
+        echo "Backend config string: ${{ inputs.backend-config }}"
+        
+        # Parse backend config string into individual parameters
+        IFS=',' read -ra CONFIG_ARGS <<< "${{ inputs.backend-config }}"
+        BACKEND_ARGS=()
+        for config in "${CONFIG_ARGS[@]}"; do
+          echo "Adding backend config: $config"
+          BACKEND_ARGS+=("-backend-config=$config")
+        done
+        
+        echo "Final terraform init command: terraform init ${BACKEND_ARGS[*]}"
+        terraform init "${BACKEND_ARGS[@]}"
         echo "SUCCESS: Terraform initialized successfully"
 
     - name: Terraform Format Check
