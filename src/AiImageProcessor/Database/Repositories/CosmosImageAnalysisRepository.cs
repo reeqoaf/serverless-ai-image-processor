@@ -7,8 +7,11 @@ namespace AiImageProcessor.Database.Repositories;
 
 public class CosmosImageAnalysisRepository(CosmosClient cosmosClient, ILogger<IImageAnalysisRepository> logger) : IImageAnalysisRepository
 {
+    private const string DatabaseName = "ImageAnalysis";
+    private const string ContainerName = "Images";
+
     private readonly ILogger<IImageAnalysisRepository> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly Container _container = cosmosClient.GetDatabase("ImageAnalysis").GetContainer("Images");
+    private readonly Container _container = cosmosClient.GetDatabase(DatabaseName).GetContainer(ContainerName);
 
     public async Task<ImageAnalysisDocument> StoreAnalysisAsync(string fileName, ImageAnalysisResult analysis, ImageMetadata metadata, StorageInfo storage)
     {
