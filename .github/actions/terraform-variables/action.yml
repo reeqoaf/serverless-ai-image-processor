@@ -13,6 +13,52 @@ inputs:
   spn-tenant-id:
     description: 'Service Principal Tenant ID'
     required: true
+  # Environment-specific variables
+  subscription-id:
+    description: 'Azure Subscription ID'
+    required: true
+  project-name:
+    description: 'Project name'
+    required: true
+  location:
+    description: 'Azure location'
+    required: true
+  storage-tier:
+    description: 'Storage account tier'
+    required: true
+  storage-replication-type:
+    description: 'Storage replication type'
+    required: true
+  storage-enable-versioning:
+    description: 'Enable storage versioning'
+    required: true
+  cognitive-services-sku:
+    description: 'Cognitive Services SKU'
+    required: true
+  function-app-sku-tier:
+    description: 'Function App SKU tier'
+    required: true
+  function-app-sku-size:
+    description: 'Function App SKU size'
+    required: true
+  max-retries:
+    description: 'Maximum retries'
+    required: true
+  tags-project:
+    description: 'Project tag value'
+    required: true
+  tags-environment:
+    description: 'Environment tag value'
+    required: true
+  tags-managed-by:
+    description: 'ManagedBy tag value'
+    required: true
+  tags-owner:
+    description: 'Owner tag value'
+    required: true
+  tags-cost-center:
+    description: 'CostCenter tag value'
+    required: true
 
 runs:
   using: 'composite'
@@ -23,31 +69,22 @@ runs:
         echo "Setting Terraform variables for ${{ inputs.environment }} environment..."
         
         # Set environment-specific variables
-        case "${{ inputs.environment }}" in
-          dev)
-            echo "TF_VAR_subscription_id=${{ vars.DEV_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
-            echo "TF_VAR_project_name=${{ vars.DEV_PROJECT_NAME }}" >> $GITHUB_ENV
-            echo "TF_VAR_environment=${{ vars.DEV_ENVIRONMENT }}" >> $GITHUB_ENV
-            echo "TF_VAR_location=${{ vars.DEV_LOCATION }}" >> $GITHUB_ENV
-            echo "TF_VAR_storage_config_tier=${{ vars.DEV_STORAGE_TIER }}" >> $GITHUB_ENV
-            echo "TF_VAR_storage_config_replication_type=${{ vars.DEV_STORAGE_REPLICATION_TYPE }}" >> $GITHUB_ENV
-            echo "TF_VAR_storage_config_enable_versioning=${{ vars.DEV_STORAGE_ENABLE_VERSIONING }}" >> $GITHUB_ENV
-            echo "TF_VAR_cognitive_services_config_sku_name=${{ vars.DEV_COGNITIVE_SERVICES_SKU }}" >> $GITHUB_ENV
-            echo "TF_VAR_function_app_config_sku_tier=${{ vars.DEV_FUNCTION_APP_SKU_TIER }}" >> $GITHUB_ENV
-            echo "TF_VAR_function_app_config_sku_size=${{ vars.DEV_FUNCTION_APP_SKU_SIZE }}" >> $GITHUB_ENV
-            echo "TF_VAR_max_retries=${{ vars.DEV_MAX_RETRIES }}" >> $GITHUB_ENV
-            echo "TF_VAR_tags_Project=${{ vars.DEV_TAGS_PROJECT }}" >> $GITHUB_ENV
-            echo "TF_VAR_tags_Environment=${{ vars.DEV_TAGS_ENVIRONMENT }}" >> $GITHUB_ENV
-            echo "TF_VAR_tags_ManagedBy=${{ vars.DEV_TAGS_MANAGED_BY }}" >> $GITHUB_ENV
-            echo "TF_VAR_tags_Owner=${{ vars.DEV_TAGS_OWNER }}" >> $GITHUB_ENV
-            echo "TF_VAR_tags_CostCenter=${{ vars.DEV_TAGS_COST_CENTER }}" >> $GITHUB_ENV
-            ;;
-          *)
-            echo "ERROR: Unsupported environment: ${{ inputs.environment }}"
-            echo "Supported environments: dev"
-            exit 1
-            ;;
-        esac
+        echo "TF_VAR_subscription_id=${{ inputs.subscription-id }}" >> $GITHUB_ENV
+        echo "TF_VAR_project_name=${{ inputs.project-name }}" >> $GITHUB_ENV
+        echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_location=${{ inputs.location }}" >> $GITHUB_ENV
+        echo "TF_VAR_storage_config_tier=${{ inputs.storage-tier }}" >> $GITHUB_ENV
+        echo "TF_VAR_storage_config_replication_type=${{ inputs.storage-replication-type }}" >> $GITHUB_ENV
+        echo "TF_VAR_storage_config_enable_versioning=${{ inputs.storage-enable-versioning }}" >> $GITHUB_ENV
+        echo "TF_VAR_cognitive_services_config_sku_name=${{ inputs.cognitive-services-sku }}" >> $GITHUB_ENV
+        echo "TF_VAR_function_app_config_sku_tier=${{ inputs.function-app-sku-tier }}" >> $GITHUB_ENV
+        echo "TF_VAR_function_app_config_sku_size=${{ inputs.function-app-sku-size }}" >> $GITHUB_ENV
+        echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_Project=${{ inputs.tags-project }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_Environment=${{ inputs.tags-environment }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_ManagedBy=${{ inputs.tags-managed-by }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_Owner=${{ inputs.tags-owner }}" >> $GITHUB_ENV
+        echo "TF_VAR_tags_CostCenter=${{ inputs.tags-cost-center }}" >> $GITHUB_ENV
         
         # Set SPN credentials for Terraform provider authentication
         echo "TF_VAR_spn_client_id=${{ inputs.spn-client-id }}" >> $GITHUB_ENV

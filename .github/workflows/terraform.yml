@@ -85,6 +85,21 @@ jobs:
           spn-client-id: ${{ steps.parse-azure-creds.outputs.spn_client_id }}
           spn-client-secret: ${{ steps.parse-azure-creds.outputs.spn_client_secret }}
           spn-tenant-id: ${{ steps.parse-azure-creds.outputs.spn_tenant_id }}
+          subscription-id: ${{ vars.DEV_SUBSCRIPTION_ID }}
+          project-name: ${{ vars.DEV_PROJECT_NAME }}
+          location: ${{ vars.DEV_LOCATION }}
+          storage-tier: ${{ vars.DEV_STORAGE_TIER }}
+          storage-replication-type: ${{ vars.DEV_STORAGE_REPLICATION_TYPE }}
+          storage-enable-versioning: ${{ vars.DEV_STORAGE_ENABLE_VERSIONING }}
+          cognitive-services-sku: ${{ vars.DEV_COGNITIVE_SERVICES_SKU }}
+          function-app-sku-tier: ${{ vars.DEV_FUNCTION_APP_SKU_TIER }}
+          function-app-sku-size: ${{ vars.DEV_FUNCTION_APP_SKU_SIZE }}
+          max-retries: ${{ vars.DEV_MAX_RETRIES }}
+          tags-project: ${{ vars.DEV_TAGS_PROJECT }}
+          tags-environment: ${{ vars.DEV_TAGS_ENVIRONMENT }}
+          tags-managed-by: ${{ vars.DEV_TAGS_MANAGED_BY }}
+          tags-owner: ${{ vars.DEV_TAGS_OWNER }}
+          tags-cost-center: ${{ vars.DEV_TAGS_COST_CENTER }}
 
       - name: Terraform Setup
         uses: ./.github/actions/terraform-setup
