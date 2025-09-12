@@ -72,11 +72,38 @@ runs:
         echo "TF_VAR_location=${{ inputs.location }}" >> $GITHUB_ENV
         echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
         
-        # Set complex object variables as JSON
-        echo "TF_VAR_storage_config={\"tier\":\"${{ inputs.storage-tier }}\",\"replication_type\":\"${{ inputs.storage-replication-type }}\",\"enable_versioning\":${{ inputs.storage-enable-versioning }}}" >> $GITHUB_ENV
-        echo "TF_VAR_cognitive_services_config={\"sku_name\":\"${{ inputs.cognitive-services-sku }}\"}" >> $GITHUB_ENV
-        echo "TF_VAR_function_app_config={\"sku_tier\":\"${{ inputs.function-app-sku-tier }}\",\"sku_size\":\"${{ inputs.function-app-sku-size }}\"}" >> $GITHUB_ENV
-        echo "TF_VAR_tags={\"Project\":\"${{ inputs.tags-project }}\",\"Environment\":\"${{ inputs.environment }}\",\"ManagedBy\":\"${{ inputs.tags-managed-by }}\",\"Owner\":\"${{ inputs.tags-owner }}\",\"CostCenter\":\"${{ inputs.tags-cost-center }}\"}" >> $GITHUB_ENV
+        # Create environment-specific tfvars file for complex objects
+        cat > ./terraform-${{ inputs.environment }}.tfvars << EOF
+# Storage configuration
+storage_config = {
+  tier              = "${{ inputs.storage-tier }}"
+  replication_type  = "${{ inputs.storage-replication-type }}"
+  enable_versioning = ${{ inputs.storage-enable-versioning }}
+}
+
+# Cognitive Services configuration
+cognitive_services_config = {
+  sku_name = "${{ inputs.cognitive-services-sku }}"
+}
+
+# Function App configuration
+function_app_config = {
+  sku_tier = "${{ inputs.function-app-sku-tier }}"
+  sku_size = "${{ inputs.function-app-sku-size }}"
+}
+
+# Resource tags
+tags = {
+  Project     = "${{ inputs.tags-project }}"
+  Environment = "${{ inputs.environment }}"
+  ManagedBy   = "${{ inputs.tags-managed-by }}"
+  Owner       = "${{ inputs.tags-owner }}"
+  CostCenter  = "${{ inputs.tags-cost-center }}"
+}
+EOF
+        
+        # Set the environment-specific tfvars file path as an environment variable
+        echo "TFVARS_FILE=./terraform-${{ inputs.environment }}.tfvars" >> $GITHUB_ENV
         
         # Set SPN credentials for Terraform provider authentication
         echo "TF_VAR_spn_client_id=${{ inputs.spn-client-id }}" >> $GITHUB_ENV
@@ -96,17 +123,13 @@ runs:
       run: |
         echo "Validating ALL required Terraform variables..."
         
-        # All variables are required
+        # All variables are required (excluding complex objects which are in tfvars file)
         REQUIRED_VARS=(
           "TF_VAR_subscription_id"
           "TF_VAR_project_name"
           "TF_VAR_environment"
           "TF_VAR_location"
-          "TF_VAR_storage_config"
-          "TF_VAR_cognitive_services_config"
-          "TF_VAR_function_app_config"
           "TF_VAR_max_retries"
-          "TF_VAR_tags"
           "TF_VAR_spn_client_id"
           "TF_VAR_spn_client_secret"
           "TF_VAR_spn_tenant_id"

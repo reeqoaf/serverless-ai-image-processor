@@ -136,16 +136,16 @@ jobs:
         shell: bash
         working-directory: './terraform'
         run: |
-          echo "Creating Terraform plan..."
-          terraform plan -input=false
+          echo "Creating Terraform plan for ${{ github.event.inputs.environment }} environment..."
+          terraform plan -input=false -var-file="terraform-${{ github.event.inputs.environment }}.tfvars" -out=tfplan
           echo "SUCCESS: Terraform plan created successfully"
 
       - name: Terraform Apply
         shell: bash
         working-directory: './terraform'
         run: |
-          echo "Applying Terraform changes..."
-          terraform apply -input=false -auto-approve
+          echo "Applying Terraform changes for ${{ github.event.inputs.environment }} environment..."
+          terraform apply -input=false tfplan
           echo "SUCCESS: Terraform apply completed successfully"
 
       - name: Terraform Output
@@ -163,4 +163,5 @@ jobs:
         run: |
           echo "Cleaning up temporary files..."
           rm -f tfplan
+          rm -f terraform-${{ github.event.inputs.environment }}.tfvars
           echo "SUCCESS: Cleanup completed"

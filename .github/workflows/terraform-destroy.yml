@@ -150,8 +150,8 @@ jobs:
         shell: bash
         working-directory: './terraform'
         run: |
-          echo "Destroying Terraform infrastructure..."
-          terraform destroy -input=false -auto-approve
+          echo "Destroying Terraform infrastructure for ${{ github.event.inputs.environment }} environment..."
+          terraform destroy -input=false -var-file="terraform-${{ github.event.inputs.environment }}.tfvars" -auto-approve
           echo "SUCCESS: Terraform destroy completed successfully"
 
       - name: Terraform Output
@@ -161,3 +161,12 @@ jobs:
         run: |
           echo "Terraform Outputs:"
           terraform output -json | jq -r 'to_entries[] | "\(.key): \(.value.value)"'
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Cleaning up temporary files..."
+          rm -f terraform-${{ github.event.inputs.environment }}.tfvars
+          echo "SUCCESS: Cleanup completed"
