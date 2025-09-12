@@ -28,6 +28,12 @@ runs:
         echo "Initializing Terraform..."
         echo "Backend config JSON: ${{ inputs.backend-config }}"
         
+        # Debug: Check SPN environment variables
+        echo "DEBUG: Checking SPN environment variables..."
+        echo "TF_VAR_spn_client_id: ${TF_VAR_spn_client_id:0:8}..."
+        echo "TF_VAR_spn_tenant_id: ${TF_VAR_spn_tenant_id:0:8}..."
+        echo "TF_VAR_spn_client_secret: [MASKED]"
+        
         # Parse JSON backend config into individual parameters
         BACKEND_ARGS=()
         BACKEND_ARGS+=("-backend-config=resource_group_name=$(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')")
