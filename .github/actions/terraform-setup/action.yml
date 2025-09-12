@@ -26,15 +26,14 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: |
         echo "Initializing Terraform..."
-        echo "Backend config string: ${{ inputs.backend-config }}"
+        echo "Backend config JSON: ${{ inputs.backend-config }}"
         
-        # Parse backend config string into individual parameters
-        IFS=',' read -ra CONFIG_ARGS <<< "${{ inputs.backend-config }}"
+        # Parse JSON backend config into individual parameters
         BACKEND_ARGS=()
-        for config in "${CONFIG_ARGS[@]}"; do
-          echo "Adding backend config: $config"
-          BACKEND_ARGS+=("-backend-config=$config")
-        done
+        BACKEND_ARGS+=("-backend-config=resource_group_name=$(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')")
+        BACKEND_ARGS+=("-backend-config=storage_account_name=$(echo '${{ inputs.backend-config }}' | jq -r '.storage_account_name')")
+        BACKEND_ARGS+=("-backend-config=container_name=$(echo '${{ inputs.backend-config }}' | jq -r '.container_name')")
+        BACKEND_ARGS+=("-backend-config=key=$(echo '${{ inputs.backend-config }}' | jq -r '.key')")
         
         echo "Final terraform init command: terraform init ${BACKEND_ARGS[*]}"
         terraform init "${BACKEND_ARGS[@]}"

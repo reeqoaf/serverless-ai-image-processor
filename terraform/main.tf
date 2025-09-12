@@ -18,25 +18,24 @@ terraform {
 
 provider "azurerm" {
   subscription_id = var.subscription_id
+  client_id       = var.spn_client_id
+  client_secret   = var.spn_client_secret
+  tenant_id       = var.spn_tenant_id
+  
+  # Disable Azure CLI authentication
+  use_cli = false
+  
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
     }
   }
-  
-  client_id       = var.spn_client_id != "" ? var.spn_client_id : null
-  client_secret   = var.spn_client_secret != "" ? var.spn_client_secret : null
-  tenant_id       = var.spn_tenant_id != "" ? var.spn_tenant_id : null
 }
 
 provider "azuread" {
-  tenant_id = var.spn_tenant_id != "" ? var.spn_tenant_id : (length(data.azurerm_client_config.current) > 0 ? data.azurerm_client_config.current[0].tenant_id : null)
-  client_id = var.spn_client_id != "" ? var.spn_client_id : null
-  client_secret = var.spn_client_secret != "" ? var.spn_client_secret : null
-}
-
-data "azurerm_client_config" "current" {
-  count = var.spn_client_id != "" ? 0 : 1
+  tenant_id = var.spn_tenant_id
+  client_id = var.spn_client_id
+  client_secret = var.spn_client_secret
 }
 
 resource "azurerm_resource_group" "main" {
