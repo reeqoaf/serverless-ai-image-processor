@@ -147,7 +147,17 @@ jobs:
           environment: ${{ github.event.inputs.environment }}
 
       - name: Terraform Destroy
-        uses: ./.github/actions/terraform-destroy
-        with:
-          working-directory: './terraform'
-          auto-approve: 'true'
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Destroying Terraform infrastructure..."
+          terraform destroy -auto-approve
+          echo "SUCCESS: Terraform destroy completed successfully"
+
+      - name: Terraform Output
+        if: always()
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Terraform Outputs:"
+          terraform output -json | jq -r 'to_entries[] | "\(.key): \(.value.value)"'

@@ -133,15 +133,41 @@ jobs:
           environment: ${{ github.event.inputs.environment }}
 
       - name: Terraform Plan
-        uses: ./.github/actions/terraform-execute
-        with:
-          action: 'plan'
-          working-directory: './terraform'
-          auto-approve: 'true'
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Creating Terraform plan..."
+          terraform plan -out=tfplan
+          echo "SUCCESS: Terraform plan created successfully"
+
+      - name: Terraform Plan Output
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Terraform Plan Summary:"
+          terraform show -no-color tfplan
 
       - name: Terraform Apply
-        uses: ./.github/actions/terraform-execute
-        with:
-          action: 'apply'
-          working-directory: './terraform'
-          auto-approve: 'true'
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Applying Terraform changes..."
+          terraform apply -auto-approve tfplan
+          echo "SUCCESS: Terraform apply completed successfully"
+
+      - name: Terraform Output
+        if: always()
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Terraform Outputs:"
+          terraform output -json | jq -r 'to_entries[] | "\(.key): \(.value.value)"'
+
+      - name: Cleanup
+        if: always()
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "Cleaning up temporary files..."
+          rm -f tfplan
+          echo "SUCCESS: Cleanup completed"
