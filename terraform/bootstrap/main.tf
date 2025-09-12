@@ -85,20 +85,20 @@ resource "azurerm_storage_container" "terraform_state" {
 
 resource "azuread_application" "github_actions" {
   display_name = "${var.project_name}-github-actions"
-  
+
   tags = ["terraform", "github-actions", var.environment]
 }
 
 resource "azuread_service_principal" "github_actions" {
   client_id = azuread_application.github_actions.client_id
-  
+
   tags = ["terraform", "github-actions", var.environment]
 }
 
 resource "azuread_service_principal_password" "github_actions" {
   service_principal_id = azuread_service_principal.github_actions.id
   display_name         = "GitHub Actions Secret"
-  
+
   # Set expiration to 2 years from now
   end_date = timeadd(timestamp(), "17520h")
 }

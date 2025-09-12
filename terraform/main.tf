@@ -21,10 +21,10 @@ provider "azurerm" {
   client_id       = var.spn_client_id
   client_secret   = var.spn_client_secret
   tenant_id       = var.spn_tenant_id
-  
+
   # Disable Azure CLI authentication
   use_cli = false
-  
+
   features {
     resource_group {
       prevent_deletion_if_contains_resources = false
@@ -33,8 +33,8 @@ provider "azurerm" {
 }
 
 provider "azuread" {
-  tenant_id = var.spn_tenant_id
-  client_id = var.spn_client_id
+  tenant_id     = var.spn_tenant_id
+  client_id     = var.spn_client_id
   client_secret = var.spn_client_secret
 }
 
@@ -48,13 +48,13 @@ resource "azurerm_resource_group" "main" {
 module "storage" {
   source = "./modules/storage"
 
-  project_name                = var.project_name
-  environment                 = var.environment
-  resource_group_name         = azurerm_resource_group.main.name
-  location                    = azurerm_resource_group.main.location
-  account_tier                = var.storage_config.tier
-  account_replication_type    = var.storage_config.replication_type
-  enable_blob_versioning      = var.storage_config.enable_versioning
+  project_name             = var.project_name
+  environment              = var.environment
+  resource_group_name      = azurerm_resource_group.main.name
+  location                 = azurerm_resource_group.main.location
+  account_tier             = var.storage_config.tier
+  account_replication_type = var.storage_config.replication_type
+  enable_blob_versioning   = var.storage_config.enable_versioning
 
   tags = var.tags
 }
@@ -88,10 +88,10 @@ module "cognitive_services" {
 module "spn" {
   source = "./modules/spn"
 
-  project_name        = var.project_name
-  environment         = var.environment
-  storage_account_id  = module.storage.storage_account_id
-  cosmosdb_account_id = module.cosmosdb.cosmosdb_account_id
+  project_name          = var.project_name
+  environment           = var.environment
+  storage_account_id    = module.storage.storage_account_id
+  cosmosdb_account_id   = module.cosmosdb.cosmosdb_account_id
   cognitive_services_id = module.cognitive_services.cognitive_services_id
 
   depends_on = [module.storage, module.cosmosdb, module.cognitive_services]
@@ -100,22 +100,22 @@ module "spn" {
 module "function_app" {
   source = "./modules/function_app"
 
-  project_name                = var.project_name
-  environment                 = var.environment
-  resource_group_name         = azurerm_resource_group.main.name
-  location                    = azurerm_resource_group.main.location
-  storage_account_name        = module.storage.storage_account_name
-  storage_connection_string   = module.storage.storage_account_primary_connection_string
-  sku_tier                    = var.function_app_config.sku_tier
-  sku_size                    = var.function_app_config.sku_size
-  cosmosdb_connection_string  = module.cosmosdb.cosmosdb_connection_string
-  computer_vision_endpoint    = module.cognitive_services.computer_vision_endpoint
-  computer_vision_api_key     = module.cognitive_services.computer_vision_api_key
-  max_retries                 = var.max_retries
-  
-  spn_client_id               = module.spn.spn_client_id
-  spn_client_secret           = module.spn.spn_client_secret
-  spn_tenant_id               = module.spn.spn_tenant_id
+  project_name               = var.project_name
+  environment                = var.environment
+  resource_group_name        = azurerm_resource_group.main.name
+  location                   = azurerm_resource_group.main.location
+  storage_account_name       = module.storage.storage_account_name
+  storage_connection_string  = module.storage.storage_account_primary_connection_string
+  sku_tier                   = var.function_app_config.sku_tier
+  sku_size                   = var.function_app_config.sku_size
+  cosmosdb_connection_string = module.cosmosdb.cosmosdb_connection_string
+  computer_vision_endpoint   = module.cognitive_services.computer_vision_endpoint
+  computer_vision_api_key    = module.cognitive_services.computer_vision_api_key
+  max_retries                = var.max_retries
+
+  spn_client_id     = module.spn.spn_client_id
+  spn_client_secret = module.spn.spn_client_secret
+  spn_tenant_id     = module.spn.spn_tenant_id
 
   depends_on = [module.storage, module.cosmosdb, module.cognitive_services, module.spn]
 

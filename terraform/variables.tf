@@ -33,8 +33,8 @@ variable "location" {
   description = "Azure region for resources"
   type        = string
   validation {
-    condition     = contains([
-      "West Europe", "North Europe", "East US", "West US 2", 
+    condition = contains([
+      "West Europe", "North Europe", "East US", "West US 2",
       "Central US", "East US 2", "West US", "Southeast Asia"
     ], var.location)
     error_message = "Location must be a supported Azure region."
@@ -48,16 +48,16 @@ variable "location" {
 variable "storage_config" {
   description = "Storage account configuration"
   type = object({
-    tier                = string
-    replication_type    = string
-    enable_versioning   = bool
+    tier              = string
+    replication_type  = string
+    enable_versioning = bool
   })
   validation {
-    condition = contains(["Standard", "Premium"], var.storage_config.tier)
+    condition     = contains(["Standard", "Premium"], var.storage_config.tier)
     error_message = "Storage tier must be either Standard or Premium."
   }
   validation {
-    condition = contains(["LRS", "GRS", "RAGRS", "ZRS"], var.storage_config.replication_type)
+    condition     = contains(["LRS", "GRS", "RAGRS", "ZRS"], var.storage_config.replication_type)
     error_message = "Replication type must be one of: LRS, GRS, RAGRS, ZRS."
   }
 }
@@ -72,7 +72,7 @@ variable "cognitive_services_config" {
     sku_name = string
   })
   validation {
-    condition = contains(["F0", "S0", "S1", "S2", "S3", "S4", "S5", "S6"], var.cognitive_services_config.sku_name)
+    condition     = contains(["F0", "S0", "S1", "S2", "S3", "S4", "S5", "S6"], var.cognitive_services_config.sku_name)
     error_message = "Cognitive Services SKU must be one of: F0, S0, S1, S2, S3, S4, S5, S6."
   }
 }
@@ -88,11 +88,11 @@ variable "function_app_config" {
     sku_size = string
   })
   validation {
-    condition = contains(["Consumption", "Basic", "Standard", "Premium"], var.function_app_config.sku_tier)
+    condition     = contains(["Consumption", "Basic", "Standard", "Premium"], var.function_app_config.sku_tier)
     error_message = "SKU tier must be one of: Consumption, Basic, Standard, Premium."
   }
   validation {
-    condition = (var.function_app_config.sku_tier == "Consumption" && var.function_app_config.sku_size == "Y1") || (var.function_app_config.sku_tier != "Consumption" && can(regex("^[A-Z][0-9]$", var.function_app_config.sku_size)))
+    condition     = (var.function_app_config.sku_tier == "Consumption" && var.function_app_config.sku_size == "Y1") || (var.function_app_config.sku_tier != "Consumption" && can(regex("^[A-Z][0-9]$", var.function_app_config.sku_size)))
     error_message = "For Consumption tier, sku_size must be Y1. For other tiers, use format like B1, S1, etc."
   }
 }

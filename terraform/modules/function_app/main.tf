@@ -19,8 +19,8 @@ resource "azurerm_windows_function_app" "main" {
   resource_group_name = var.resource_group_name
   location            = var.location
 
-  storage_account_name       = var.storage_account_name
-  service_plan_id            = azurerm_service_plan.main.id
+  storage_account_name = var.storage_account_name
+  service_plan_id      = azurerm_service_plan.main.id
 
   site_config {
     application_stack {
@@ -29,17 +29,17 @@ resource "azurerm_windows_function_app" "main" {
   }
 
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME" = "dotnet-isolated"
-    "WEBSITE_RUN_FROM_PACKAGE" = "1"
-    "AzureWebJobsStorage" = var.storage_connection_string
-    "COMPUTER_VISION_ENDPOINT" = var.computer_vision_endpoint
-    "COMPUTER_VISION_API_KEY" = var.computer_vision_api_key
+    "FUNCTIONS_WORKER_RUNTIME"   = "dotnet-isolated"
+    "WEBSITE_RUN_FROM_PACKAGE"   = "1"
+    "AzureWebJobsStorage"        = var.storage_connection_string
+    "COMPUTER_VISION_ENDPOINT"   = var.computer_vision_endpoint
+    "COMPUTER_VISION_API_KEY"    = var.computer_vision_api_key
     "COSMOSDB_CONNECTION_STRING" = var.cosmosdb_connection_string
-    "STORAGE_ACCOUNT_NAME" = var.storage_account_name
-    "MAX_RETRIES" = var.max_retries
-    "AZURE_CLIENT_ID" = var.spn_client_id
-    "AZURE_CLIENT_SECRET" = var.spn_client_secret
-    "AZURE_TENANT_ID" = var.spn_tenant_id
+    "STORAGE_ACCOUNT_NAME"       = var.storage_account_name
+    "MAX_RETRIES"                = var.max_retries
+    "AZURE_CLIENT_ID"            = var.spn_client_id
+    "AZURE_CLIENT_SECRET"        = var.spn_client_secret
+    "AZURE_TENANT_ID"            = var.spn_tenant_id
   }
 
   identity {

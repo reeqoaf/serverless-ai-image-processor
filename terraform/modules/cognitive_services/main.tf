@@ -12,7 +12,7 @@ resource "azurerm_cognitive_account" "computer_vision" {
   sku_name            = var.sku_name
 
   public_network_access_enabled = true
-  local_auth_enabled           = true
+  local_auth_enabled            = true
 
   tags = var.tags
 
