@@ -1,0 +1,109 @@
+name: Deploy Azure Function
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  TF_VERSION: '1.10.0'
+  AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+  TF_BACKEND_CONFIG: ${{ secrets.TF_BACKEND_CONFIG }}
+
+jobs:
+  deploy-function:
+    name: Deploy Azure Function
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+    
+    steps:
+      - name: Validate Required Secrets
+        run: |
+          # Validate required repository secrets
+          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ] || [ -z "${{ secrets.TF_BACKEND_CONFIG }}" ]; then
+            echo "ERROR: Missing required repository secrets: AZURE_CREDENTIALS, TF_BACKEND_CONFIG"
+            exit 1
+          fi
+          
+          # Validate required environment secrets
+          if [ -z "${{ secrets.FUNCTION_PUBLISH_PROFILE }}" ]; then
+            echo "ERROR: Missing required environment secret: FUNCTION_PUBLISH_PROFILE"
+            exit 1
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Configure Terraform Backend
+        shell: bash
+        run: |
+          echo "${{ env.TF_BACKEND_CONFIG }}" | base64 -d > backend_config.tfvars
+
+      - name: Initialize Terraform
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          terraform init -backend-config=../backend_config.tfvars
+
+      - name: Get Function App Info from Terraform State
+        id: terraform-outputs
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "function_app_name=$(terraform output -raw function_app_name)" >> $GITHUB_OUTPUT
+          echo "resource_group_name=$(terraform output -raw resource_group_name)" >> $GITHUB_OUTPUT
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Restore dependencies
+        shell: bash
+        working-directory: './src/AiImageProcessor'
+        run: dotnet restore
+
+      - name: Build function app
+        shell: bash
+        working-directory: './src/AiImageProcessor'
+        run: |
+          dotnet build --configuration Release --no-restore
+
+      - name: Publish function app
+        shell: bash
+        working-directory: './src/AiImageProcessor'
+        run: |
+          dotnet publish --configuration Release --no-build --output ./publish
+
+      - name: Create deployment package
+        shell: bash
+        working-directory: './src/AiImageProcessor'
+        run: |
+          cd publish
+          zip -r ../function-app.zip . -x "*.pdb"
+
+      - name: Deploy function app
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ steps.terraform-outputs.outputs.function_app_name }}
+          package: './src/AiImageProcessor/function-app.zip'
+          publish-profile: ${{ secrets.FUNCTION_PUBLISH_PROFILE }}
+
+      - name: Verify deployment
+        shell: bash
+        run: |
+          echo "Function app deployed successfully!"
+          echo "Function App Name: ${{ steps.terraform-outputs.outputs.function_app_name }}"
+          echo "Resource Group: ${{ steps.terraform-outputs.outputs.resource_group_name }}"
