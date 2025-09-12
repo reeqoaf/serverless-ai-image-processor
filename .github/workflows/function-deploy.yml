@@ -66,8 +66,8 @@ jobs:
         id: extract-app-name
         shell: bash
         run: |
-          # Extract app name from publish profile XML
-          app_name=$(echo '${{ secrets.FUNCTION_PUBLISH_PROFILE }}' | grep -oP '(?<=publishUrl=")[^"]*' | sed 's|https://||' | sed 's|\.scm\.azurewebsites\.net||')
+          # Extract app name from publish profile XML - look for the profile name attribute
+          app_name=$(echo '${{ secrets.FUNCTION_PUBLISH_PROFILE }}' | grep -oP '(?<=profileName=")[^"]*' | head -1)
           echo "app_name=$app_name" >> $GITHUB_OUTPUT
           echo "Function App Name: $app_name"
 
