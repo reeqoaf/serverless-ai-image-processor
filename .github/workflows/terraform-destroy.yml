@@ -10,10 +10,6 @@ on:
         type: choice
         options:
           - dev
-      confirm_destroy:
-        description: 'Type "DESTROY" to confirm destruction of all resources'
-        required: true
-        type: string
 
 env:
   TF_VERSION: '1.10.0'
@@ -41,26 +37,36 @@ jobs:
             *) echo "ERROR: Invalid environment: ${{ github.event.inputs.environment }}"; exit 1 ;;
           esac
 
-      - name: Validate Environment Secrets
+      - name: Validate Environment Variables
         run: |
+          # Validate required secrets
+          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ] || [ -z "${{ secrets.TF_BACKEND_CONFIG }}" ]; then
+            echo "ERROR: Missing required secrets: AZURE_CREDENTIALS, TF_BACKEND_CONFIG"
+            exit 1
+          fi
+          
+          # Validate required environment variables
           MISSING_VARS=()
-          for var in SUBSCRIPTION_ID PROJECT_NAME LOCATION STORAGE_TIER STORAGE_REPLICATION_TYPE STORAGE_ENABLE_VERSIONING COGNITIVE_SERVICES_SKU FUNCTION_APP_SKU_TIER FUNCTION_APP_SKU_SIZE MAX_RETRIES TAGS_PROJECT TAGS_MANAGED_BY TAGS_OWNER TAGS_COST_CENTER; do
-            if [ -z "${{ secrets[var] }}" ]; then
-              MISSING_VARS+=("$var")
-            fi
-          done
+          [ -z "${{ vars.SUBSCRIPTION_ID }}" ] && MISSING_VARS+=("SUBSCRIPTION_ID")
+          [ -z "${{ vars.PROJECT_NAME }}" ] && MISSING_VARS+=("PROJECT_NAME")
+          [ -z "${{ vars.LOCATION }}" ] && MISSING_VARS+=("LOCATION")
+          [ -z "${{ vars.STORAGE_TIER }}" ] && MISSING_VARS+=("STORAGE_TIER")
+          [ -z "${{ vars.STORAGE_REPLICATION_TYPE }}" ] && MISSING_VARS+=("STORAGE_REPLICATION_TYPE")
+          [ -z "${{ vars.STORAGE_ENABLE_VERSIONING }}" ] && MISSING_VARS+=("STORAGE_ENABLE_VERSIONING")
+          [ -z "${{ vars.COGNITIVE_SERVICES_SKU }}" ] && MISSING_VARS+=("COGNITIVE_SERVICES_SKU")
+          [ -z "${{ vars.FUNCTION_APP_SKU_TIER }}" ] && MISSING_VARS+=("FUNCTION_APP_SKU_TIER")
+          [ -z "${{ vars.FUNCTION_APP_SKU_SIZE }}" ] && MISSING_VARS+=("FUNCTION_APP_SKU_SIZE")
+          [ -z "${{ vars.MAX_RETRIES }}" ] && MISSING_VARS+=("MAX_RETRIES")
+          [ -z "${{ vars.TAGS_PROJECT }}" ] && MISSING_VARS+=("TAGS_PROJECT")
+          [ -z "${{ vars.TAGS_MANAGED_BY }}" ] && MISSING_VARS+=("TAGS_MANAGED_BY")
+          [ -z "${{ vars.TAGS_OWNER }}" ] && MISSING_VARS+=("TAGS_OWNER")
+          [ -z "${{ vars.TAGS_COST_CENTER }}" ] && MISSING_VARS+=("TAGS_COST_CENTER")
           
           if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-            echo "ERROR: Missing environment secrets: ${MISSING_VARS[*]}"
+            echo "ERROR: Missing environment variables: ${MISSING_VARS[*]}"
             exit 1
           fi
 
-      - name: Validate Destroy Confirmation
-        run: |
-          if [ "${{ github.event.inputs.confirm_destroy }}" != "DESTROY" ]; then
-            echo "ERROR: Destroy confirmation required"
-            exit 1
-          fi
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -84,20 +90,20 @@ jobs:
           spn-client-id: ${{ steps.parse-azure-creds.outputs.spn_client_id }}
           spn-client-secret: ${{ steps.parse-azure-creds.outputs.spn_client_secret }}
           spn-tenant-id: ${{ steps.parse-azure-creds.outputs.spn_tenant_id }}
-          subscription-id: ${{ secrets.SUBSCRIPTION_ID }}
-          project-name: ${{ secrets.PROJECT_NAME }}
-          location: ${{ secrets.LOCATION }}
-          storage-tier: ${{ secrets.STORAGE_TIER }}
-          storage-replication-type: ${{ secrets.STORAGE_REPLICATION_TYPE }}
-          storage-enable-versioning: ${{ secrets.STORAGE_ENABLE_VERSIONING }}
-          cognitive-services-sku: ${{ secrets.COGNITIVE_SERVICES_SKU }}
-          function-app-sku-tier: ${{ secrets.FUNCTION_APP_SKU_TIER }}
-          function-app-sku-size: ${{ secrets.FUNCTION_APP_SKU_SIZE }}
-          max-retries: ${{ secrets.MAX_RETRIES }}
-          tags-project: ${{ secrets.TAGS_PROJECT }}
-          tags-managed-by: ${{ secrets.TAGS_MANAGED_BY }}
-          tags-owner: ${{ secrets.TAGS_OWNER }}
-          tags-cost-center: ${{ secrets.TAGS_COST_CENTER }}
+          subscription-id: ${{ vars.SUBSCRIPTION_ID }}
+          project-name: ${{ vars.PROJECT_NAME }}
+          location: ${{ vars.LOCATION }}
+          storage-tier: ${{ vars.STORAGE_TIER }}
+          storage-replication-type: ${{ vars.STORAGE_REPLICATION_TYPE }}
+          storage-enable-versioning: ${{ vars.STORAGE_ENABLE_VERSIONING }}
+          cognitive-services-sku: ${{ vars.COGNITIVE_SERVICES_SKU }}
+          function-app-sku-tier: ${{ vars.FUNCTION_APP_SKU_TIER }}
+          function-app-sku-size: ${{ vars.FUNCTION_APP_SKU_SIZE }}
+          max-retries: ${{ vars.MAX_RETRIES }}
+          tags-project: ${{ vars.TAGS_PROJECT }}
+          tags-managed-by: ${{ vars.TAGS_MANAGED_BY }}
+          tags-owner: ${{ vars.TAGS_OWNER }}
+          tags-cost-center: ${{ vars.TAGS_COST_CENTER }}
 
       - name: Terraform Setup
         uses: ./.github/actions/terraform-setup
