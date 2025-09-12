@@ -88,10 +88,19 @@ runs:
         echo "TF_VAR_spn_client_secret=${{ inputs.spn-client-secret }}" >> $GITHUB_ENV
         echo "TF_VAR_spn_tenant_id=${{ inputs.spn-tenant-id }}" >> $GITHUB_ENV
         
+        # Also set ARM_* environment variables for Azure provider
+        echo "ARM_CLIENT_ID=${{ inputs.spn-client-id }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ inputs.spn-client-secret }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ inputs.spn-tenant-id }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ inputs.subscription-id }}" >> $GITHUB_ENV
+        
         # Debug: Show SPN credentials (masked for security)
         echo "DEBUG: SPN Client ID: ${TF_VAR_spn_client_id:0:8}..."
         echo "DEBUG: SPN Tenant ID: ${TF_VAR_spn_tenant_id:0:8}..."
         echo "DEBUG: SPN Client Secret: [MASKED]"
+        echo "DEBUG: ARM Client ID: ${ARM_CLIENT_ID:0:8}..."
+        echo "DEBUG: ARM Tenant ID: ${ARM_TENANT_ID:0:8}..."
+        echo "DEBUG: ARM Subscription ID: ${ARM_SUBSCRIPTION_ID:0:8}..."
         echo "SUCCESS: Environment variables set for ${{ inputs.environment }}"
 
     - name: Validate Terraform variables

@@ -33,6 +33,10 @@ runs:
         echo "TF_VAR_spn_client_id: ${TF_VAR_spn_client_id:0:8}..."
         echo "TF_VAR_spn_tenant_id: ${TF_VAR_spn_tenant_id:0:8}..."
         echo "TF_VAR_spn_client_secret: [MASKED]"
+        echo "ARM_CLIENT_ID: ${ARM_CLIENT_ID:0:8}..."
+        echo "ARM_TENANT_ID: ${ARM_TENANT_ID:0:8}..."
+        echo "ARM_SUBSCRIPTION_ID: ${ARM_SUBSCRIPTION_ID:0:8}..."
+        echo "ARM_CLIENT_SECRET: [MASKED]"
         
         # Parse JSON backend config into individual parameters
         BACKEND_ARGS=()
