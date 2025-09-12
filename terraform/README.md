@@ -26,7 +26,7 @@ terraform destroy -var-file="envs/dev/terraform.tfvars"
 ## Configuration
 
 ### Environment Files
-- `envs/dev/terraform.tfvars` - Development (only supported environment)
+- `envs/dev/terraform.tfvars` - Development configuration
 
 ### Key Variables
 ```hcl
@@ -36,19 +36,24 @@ location = "West Europe"
 subscription_id = "your-subscription-id"
 ```
 
-## Cost Estimates
+## Module Structure
 
-| Environment | Monthly Cost | Notes |
-|-------------|--------------|-------|
-| **Development** | $0-5 | Free tiers, minimal usage |
-| **Additional** | Variable | Based on configuration |
+```
+terraform/
+├── modules/
+│   ├── storage/           # Storage account + containers
+│   ├── cosmosdb/          # CosmosDB database
+│   ├── cognitive_services/ # Computer Vision API
+│   ├── function_app/      # Function App + service plan
+│   └── spn/              # Service Principal
+├── envs/dev/             # Environment-specific configs
+└── main.tf              # Root module
+```
 
-## Security
+## GitHub Actions
 
-- ✅ No hardcoded secrets
-- ✅ Service Principal authentication
-- ✅ RBAC permissions
-- ✅ Environment isolation
+- **Terraform Deploy** - Deploy infrastructure
+- **Terraform Destroy** - Remove infrastructure
 
 ## Troubleshooting
 
