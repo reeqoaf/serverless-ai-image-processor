@@ -83,7 +83,7 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         {
             Name = obj.ObjectProperty ?? "Unknown",
             Confidence = obj.Confidence,
-            BoundingBox = obj.Rectangle != null ? new Database.Entities.BoundingBox
+            BoundingBox = obj.Rectangle != null ? new BoundingBox
             {
                 X = obj.Rectangle.X,
                 Y = obj.Rectangle.Y,
@@ -93,17 +93,17 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         }).ToList();
     }
 
-    private static List<Database.Entities.DetectedFace> MapDetectedFaces(IList<FaceDescription>? faces)
+    private static List<DetectedFace> MapDetectedFaces(IList<FaceDescription>? faces)
     {
-        if (faces == null) return new List<Database.Entities.DetectedFace>();
+        if (faces == null) return new List<DetectedFace>();
 
-        return faces.Select(face => new Database.Entities.DetectedFace
+        return faces.Select(face => new DetectedFace
         {
             Age = face.Age,
             Gender = face.Gender?.ToString() ?? "Unknown",
             Emotion = "Unknown", // Emotion detection not available in current Computer Vision API
             Confidence = 0.9, // Default confidence
-            BoundingBox = face.FaceRectangle != null ? new Database.Entities.BoundingBox
+            BoundingBox = face.FaceRectangle != null ? new BoundingBox
             {
                 X = face.FaceRectangle.Left,
                 Y = face.FaceRectangle.Top,
@@ -139,11 +139,11 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         return textLines;
     }
 
-    private static Database.Entities.ColorAnalysis MapColorAnalysis(ColorInfo? colorInfo)
+    private static ColorAnalysis MapColorAnalysis(ColorInfo? colorInfo)
     {
-        if (colorInfo == null) return new Database.Entities.ColorAnalysis();
+        if (colorInfo == null) return new ColorAnalysis();
 
-        return new Database.Entities.ColorAnalysis
+        return new ColorAnalysis
         {
             Dominant = colorInfo.DominantColorForeground ?? "#000000",
             Accent = colorInfo.DominantColorBackground ?? "#FFFFFF",
@@ -151,11 +151,11 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         };
     }
 
-    private static Database.Entities.AdultContentAnalysis MapAdultContent(AdultInfo? adultInfo)
+    private static AdultContentAnalysis MapAdultContent(AdultInfo? adultInfo)
     {
-        if (adultInfo == null) return new Database.Entities.AdultContentAnalysis();
+        if (adultInfo == null) return new AdultContentAnalysis();
 
-        return new Database.Entities.AdultContentAnalysis
+        return new AdultContentAnalysis
         {
             IsAdultContent = adultInfo.IsAdultContent,
             AdultScore = adultInfo.AdultScore,
