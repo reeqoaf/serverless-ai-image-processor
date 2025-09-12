@@ -21,13 +21,13 @@ env:
   TF_BACKEND_CONFIG: ${{ secrets.TF_BACKEND_CONFIG }}
 
 jobs:
-  validate-inputs:
-    name: Validate Inputs
+  terraform-destroy:
+    name: Terraform Destroy
     runs-on: ubuntu-latest
-    outputs:
-      environment: ${{ steps.validate.outputs.environment }}
+    environment: ${{ github.event.inputs.environment }}
+    
     steps:
-      - name: Validate Required Secrets
+      - name: Validate Required Repository Secrets
         run: |
           if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
             echo "ERROR: AZURE_CREDENTIALS secret is not set"
@@ -37,18 +37,13 @@ jobs:
             echo "ERROR: TF_BACKEND_CONFIG secret is not set"
             exit 1
           fi
-          echo "SUCCESS: All required secrets are present"
+          echo "SUCCESS: All required repository secrets are present"
 
-      - name: Validate Environment Variables
-        id: validate
+      - name: Validate Environment
         run: |
           ENVIRONMENT="${{ github.event.inputs.environment }}"
-          CONFIRM="${{ github.event.inputs.confirm_destroy }}"
-          
-          # Validate environment
           case "$ENVIRONMENT" in
             dev)
-              echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
               echo "SUCCESS: Environment '$ENVIRONMENT' is valid"
               ;;
             *)
@@ -57,9 +52,10 @@ jobs:
               exit 1
               ;;
           esac
-          
-          # Validate all required environment variables are present
-          echo "Validating environment variables for $ENVIRONMENT..."
+
+      - name: Validate Environment Secrets
+        run: |
+          echo "Validating environment secrets for ${{ github.event.inputs.environment }}..."
           
           MISSING_VARS=()
           
@@ -85,14 +81,16 @@ jobs:
             printf '  - %s\n' "${MISSING_VARS[@]}"
             echo ""
             echo "Please ensure all environment secrets are configured in GitHub:"
-            echo "Settings > Secrets and variables > Actions > Environment secrets > $ENVIRONMENT"
+            echo "Settings > Secrets and variables > Actions > Environment secrets > ${{ github.event.inputs.environment }}"
             exit 1
           fi
           
           echo ""
           echo "SUCCESS: All required environment secrets are present and configured"
-          
-          # Validate destroy confirmation
+
+      - name: Validate Destroy Confirmation
+        run: |
+          CONFIRM="${{ github.event.inputs.confirm_destroy }}"
           if [ "$CONFIRM" != "DESTROY" ]; then
             echo "ERROR: Destroy confirmation failed"
             echo "You must type 'DESTROY' to confirm destruction of all resources"
@@ -100,13 +98,6 @@ jobs:
           fi
           echo "SUCCESS: Destroy confirmation received"
 
-  terraform-destroy:
-    name: Terraform Destroy
-    needs: validate-inputs
-    runs-on: ubuntu-latest
-    environment: ${{ needs.validate-inputs.outputs.environment }}
-    
-    steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -128,7 +119,7 @@ jobs:
       - name: Set Terraform Variables
         uses: ./.github/actions/terraform-variables
         with:
-          environment: ${{ needs.validate-inputs.outputs.environment }}
+          environment: ${{ github.event.inputs.environment }}
           spn-client-id: ${{ steps.parse-azure-creds.outputs.spn_client_id }}
           spn-client-secret: ${{ steps.parse-azure-creds.outputs.spn_client_secret }}
           spn-tenant-id: ${{ steps.parse-azure-creds.outputs.spn_tenant_id }}
