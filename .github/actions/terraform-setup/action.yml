@@ -28,37 +28,20 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        echo "Initializing Terraform..."
-        
-        # Parse JSON backend config into individual parameters
         BACKEND_ARGS=()
         BACKEND_ARGS+=("-backend-config=resource_group_name=$(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')")
         BACKEND_ARGS+=("-backend-config=storage_account_name=$(echo '${{ inputs.backend-config }}' | jq -r '.storage_account_name')")
         BACKEND_ARGS+=("-backend-config=container_name=$(echo '${{ inputs.backend-config }}' | jq -r '.container_name')")
-        # Use environment-specific state file key
         BACKEND_ARGS+=("-backend-config=key=terraform-${{ inputs.environment }}.tfstate")
         
-        echo "Backend configuration:"
-        echo "  Resource Group: $(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')"
-        echo "  Storage Account: $(echo '${{ inputs.backend-config }}' | jq -r '.storage_account_name')"
-        echo "  Container: $(echo '${{ inputs.backend-config }}' | jq -r '.container_name')"
-        echo "  State Key: terraform-${{ inputs.environment }}.tfstate"
-        
         terraform init -input=false "${BACKEND_ARGS[@]}"
-        echo "SUCCESS: Terraform initialized successfully"
 
     - name: Terraform Format Check
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: |
-        echo "Checking Terraform formatting..."
-        terraform fmt -check -recursive
-        echo "SUCCESS: Terraform formatting is correct"
+      run: terraform fmt -check -recursive
 
     - name: Terraform Validate
       shell: bash
       working-directory: ${{ inputs.working-directory }}
-      run: |
-        echo "Validating Terraform configuration..."
-        terraform validate
-        echo "SUCCESS: Terraform configuration is valid"
+      run: terraform validate

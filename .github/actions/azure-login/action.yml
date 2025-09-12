@@ -16,7 +16,6 @@ runs:
       id: parse-credentials
       shell: bash
       run: |
-        echo "Parsing Azure credentials..."
         echo "client_id=$(echo '${{ inputs.azure-credentials }}' | jq -r '.clientId')" >> $GITHUB_OUTPUT
         echo "client_secret=$(echo '${{ inputs.azure-credentials }}' | jq -r '.clientSecret')" >> $GITHUB_OUTPUT
         echo "tenant_id=$(echo '${{ inputs.azure-credentials }}' | jq -r '.tenantId')" >> $GITHUB_OUTPUT
@@ -30,12 +29,8 @@ runs:
     - name: Set subscription context
       if: inputs.subscription-id != ''
       shell: bash
-      run: |
-        echo "Setting subscription context to: ${{ inputs.subscription-id }}"
-        az account set --subscription "${{ inputs.subscription-id }}"
+      run: az account set --subscription "${{ inputs.subscription-id }}"
 
     - name: Display Azure context
       shell: bash
-      run: |
-        echo "Current Azure context:"
-        az account show --query "{subscriptionId: id, subscriptionName: name, tenantId: tenantId}" --output table
+      run: az account show --query "{subscriptionId: id, subscriptionName: name, tenantId: tenantId}" --output table

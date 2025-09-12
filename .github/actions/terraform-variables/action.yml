@@ -63,35 +63,27 @@ runs:
     - name: Set Terraform variables
       shell: bash
       run: |
-        echo "Setting Terraform variables for ${{ inputs.environment }} environment..."
-        
-        # Set environment-specific variables
         echo "TF_VAR_subscription_id=${{ inputs.subscription-id }}" >> $GITHUB_ENV
         echo "TF_VAR_project_name=${{ inputs.project-name }}" >> $GITHUB_ENV
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ inputs.location }}" >> $GITHUB_ENV
         echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
         
-        # Create environment-specific tfvars file for complex objects
-        printf '# Storage configuration\n' > ./terraform/terraform-${{ inputs.environment }}.tfvars
-        printf 'storage_config = {\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
+        printf 'storage_config = {\n' > ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  tier              = "%s"\n' "${{ inputs.storage-tier }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  replication_type  = "%s"\n' "${{ inputs.storage-replication-type }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  enable_versioning = %s\n' "${{ inputs.storage-enable-versioning }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '}\n\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         
-        printf '# Cognitive Services configuration\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf 'cognitive_services_config = {\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  sku_name = "%s"\n' "${{ inputs.cognitive-services-sku }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '}\n\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         
-        printf '# Function App configuration\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf 'function_app_config = {\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  sku_tier = "%s"\n' "${{ inputs.function-app-sku-tier }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  sku_size = "%s"\n' "${{ inputs.function-app-sku-size }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '}\n\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         
-        printf '# Resource tags\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf 'tags = {\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  Project     = "%s"\n' "${{ inputs.tags-project }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '  Environment = "%s"\n' "${{ inputs.environment }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
@@ -100,28 +92,20 @@ runs:
         printf '  CostCenter  = "%s"\n' "${{ inputs.tags-cost-center }}" >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         printf '}\n' >> ./terraform/terraform-${{ inputs.environment }}.tfvars
         
-        # Set the environment-specific tfvars file path as an environment variable
         echo "TFVARS_FILE=./terraform/terraform-${{ inputs.environment }}.tfvars" >> $GITHUB_ENV
         
-        # Set SPN credentials for Terraform provider authentication
         echo "TF_VAR_spn_client_id=${{ inputs.spn-client-id }}" >> $GITHUB_ENV
         echo "TF_VAR_spn_client_secret=${{ inputs.spn-client-secret }}" >> $GITHUB_ENV
         echo "TF_VAR_spn_tenant_id=${{ inputs.spn-tenant-id }}" >> $GITHUB_ENV
         
-        # Also set ARM_* environment variables for Azure provider
         echo "ARM_CLIENT_ID=${{ inputs.spn-client-id }}" >> $GITHUB_ENV
         echo "ARM_CLIENT_SECRET=${{ inputs.spn-client-secret }}" >> $GITHUB_ENV
         echo "ARM_TENANT_ID=${{ inputs.spn-tenant-id }}" >> $GITHUB_ENV
         echo "ARM_SUBSCRIPTION_ID=${{ inputs.subscription-id }}" >> $GITHUB_ENV
-        
-        echo "SUCCESS: Environment variables set for ${{ inputs.environment }}"
 
     - name: Validate Terraform variables
       shell: bash
       run: |
-        echo "Validating ALL required Terraform variables..."
-        
-        # All variables are required (excluding complex objects which are in tfvars file)
         REQUIRED_VARS=(
           "TF_VAR_subscription_id"
           "TF_VAR_project_name"
@@ -137,22 +121,11 @@ runs:
         
         for var in "${REQUIRED_VARS[@]}"; do
           if [ -z "${!var}" ]; then
-            echo "ERROR: Required variable $var is not set"
             MISSING_VARS+=("$var")
-          else
-            echo "SUCCESS: $var is set"
           fi
         done
         
         if [ ${#MISSING_VARS[@]} -gt 0 ]; then
-          echo ""
-          echo "ERROR: Missing required variables:"
-          printf '  - %s\n' "${MISSING_VARS[@]}"
-          echo ""
-          echo "Please ensure all environment variables are configured in GitHub:"
-          echo "Settings > Secrets and variables > Actions > Environment variables > ${{ inputs.environment }}"
+          echo "ERROR: Missing required variables: ${MISSING_VARS[*]}"
           exit 1
         fi
-        
-        echo ""
-        echo "SUCCESS: All required variables are present and configured"
