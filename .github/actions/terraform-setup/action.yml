@@ -38,7 +38,7 @@ runs:
         # Use environment-specific state file key
         BACKEND_ARGS+=("-backend-config=key=terraform-${{ inputs.environment }}.tfstate")
         
-        terraform init "${BACKEND_ARGS[@]}"
+        terraform init -input=false "${BACKEND_ARGS[@]}"
         echo "SUCCESS: Terraform initialized successfully"
 
     - name: Terraform Format Check

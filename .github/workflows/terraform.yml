@@ -132,12 +132,27 @@ jobs:
           working-directory: './terraform'
           environment: ${{ github.event.inputs.environment }}
 
+      - name: Debug Environment Variables
+        shell: bash
+        working-directory: './terraform'
+        run: |
+          echo "=== Debug: Environment Variables ==="
+          echo "TF_VAR_subscription_id: $TF_VAR_subscription_id"
+          echo "TF_VAR_project_name: $TF_VAR_project_name"
+          echo "TF_VAR_environment: $TF_VAR_environment"
+          echo "TF_VAR_location: $TF_VAR_location"
+          echo "TF_VAR_cognitive_services_config_sku_name: $TF_VAR_cognitive_services_config_sku_name"
+          echo "ARM_CLIENT_ID: $ARM_CLIENT_ID"
+          echo "ARM_TENANT_ID: $ARM_TENANT_ID"
+          echo "ARM_SUBSCRIPTION_ID: $ARM_SUBSCRIPTION_ID"
+          echo "=== End Debug ==="
+
       - name: Terraform Plan
         shell: bash
         working-directory: './terraform'
         run: |
           echo "Creating Terraform plan..."
-          terraform plan -out=tfplan
+          terraform plan -input=false -out=tfplan
           echo "SUCCESS: Terraform plan created successfully"
 
       - name: Terraform Plan Output
@@ -152,7 +167,7 @@ jobs:
         working-directory: './terraform'
         run: |
           echo "Applying Terraform changes..."
-          terraform apply -auto-approve tfplan
+          terraform apply -input=false -auto-approve tfplan
           echo "SUCCESS: Terraform apply completed successfully"
 
       - name: Terraform Output

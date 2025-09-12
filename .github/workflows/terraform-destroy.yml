@@ -151,7 +151,7 @@ jobs:
         working-directory: './terraform'
         run: |
           echo "Destroying Terraform infrastructure..."
-          terraform destroy -auto-approve
+          terraform destroy -input=false -auto-approve
           echo "SUCCESS: Terraform destroy completed successfully"
 
       - name: Terraform Output
