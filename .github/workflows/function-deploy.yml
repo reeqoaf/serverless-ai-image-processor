@@ -62,9 +62,19 @@ jobs:
           cd publish
           zip -r ../function-app.zip . -x "*.pdb"
 
+      - name: Extract Function App Name from Publish Profile
+        id: extract-app-name
+        shell: bash
+        run: |
+          # Extract app name from publish profile XML
+          app_name=$(echo '${{ secrets.FUNCTION_PUBLISH_PROFILE }}' | grep -oP '(?<=publishUrl=")[^"]*' | sed 's|https://||' | sed 's|\.scm\.azurewebsites\.net||')
+          echo "app_name=$app_name" >> $GITHUB_OUTPUT
+          echo "Function App Name: $app_name"
+
       - name: Deploy function app
         uses: Azure/functions-action@v1
         with:
+          app-name: ${{ steps.extract-app-name.outputs.app_name }}
           package: './src/AiImageProcessor/function-app.zip'
           publish-profile: ${{ secrets.FUNCTION_PUBLISH_PROFILE }}
 
