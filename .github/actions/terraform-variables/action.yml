@@ -70,18 +70,13 @@ runs:
         echo "TF_VAR_project_name=${{ inputs.project-name }}" >> $GITHUB_ENV
         echo "TF_VAR_environment=${{ inputs.environment }}" >> $GITHUB_ENV
         echo "TF_VAR_location=${{ inputs.location }}" >> $GITHUB_ENV
-        echo "TF_VAR_storage_config_tier=${{ inputs.storage-tier }}" >> $GITHUB_ENV
-        echo "TF_VAR_storage_config_replication_type=${{ inputs.storage-replication-type }}" >> $GITHUB_ENV
-        echo "TF_VAR_storage_config_enable_versioning=${{ inputs.storage-enable-versioning }}" >> $GITHUB_ENV
-        echo "TF_VAR_cognitive_services_config_sku_name=${{ inputs.cognitive-services-sku }}" >> $GITHUB_ENV
-        echo "TF_VAR_function_app_config_sku_tier=${{ inputs.function-app-sku-tier }}" >> $GITHUB_ENV
-        echo "TF_VAR_function_app_config_sku_size=${{ inputs.function-app-sku-size }}" >> $GITHUB_ENV
         echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_Project=${{ inputs.tags-project }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_Environment=${{ inputs.environment }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_ManagedBy=${{ inputs.tags-managed-by }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_Owner=${{ inputs.tags-owner }}" >> $GITHUB_ENV
-        echo "TF_VAR_tags_CostCenter=${{ inputs.tags-cost-center }}" >> $GITHUB_ENV
+        
+        # Set complex object variables as JSON
+        echo "TF_VAR_storage_config={\"tier\":\"${{ inputs.storage-tier }}\",\"replication_type\":\"${{ inputs.storage-replication-type }}\",\"enable_versioning\":${{ inputs.storage-enable-versioning }}}" >> $GITHUB_ENV
+        echo "TF_VAR_cognitive_services_config={\"sku_name\":\"${{ inputs.cognitive-services-sku }}\"}" >> $GITHUB_ENV
+        echo "TF_VAR_function_app_config={\"sku_tier\":\"${{ inputs.function-app-sku-tier }}\",\"sku_size\":\"${{ inputs.function-app-sku-size }}\"}" >> $GITHUB_ENV
+        echo "TF_VAR_tags={\"Project\":\"${{ inputs.tags-project }}\",\"Environment\":\"${{ inputs.environment }}\",\"ManagedBy\":\"${{ inputs.tags-managed-by }}\",\"Owner\":\"${{ inputs.tags-owner }}\",\"CostCenter\":\"${{ inputs.tags-cost-center }}\"}" >> $GITHUB_ENV
         
         # Set SPN credentials for Terraform provider authentication
         echo "TF_VAR_spn_client_id=${{ inputs.spn-client-id }}" >> $GITHUB_ENV
@@ -107,18 +102,11 @@ runs:
           "TF_VAR_project_name"
           "TF_VAR_environment"
           "TF_VAR_location"
-          "TF_VAR_storage_config_tier"
-          "TF_VAR_storage_config_replication_type"
-          "TF_VAR_storage_config_enable_versioning"
-          "TF_VAR_cognitive_services_config_sku_name"
-          "TF_VAR_function_app_config_sku_tier"
-          "TF_VAR_function_app_config_sku_size"
+          "TF_VAR_storage_config"
+          "TF_VAR_cognitive_services_config"
+          "TF_VAR_function_app_config"
           "TF_VAR_max_retries"
-          "TF_VAR_tags_Project"
-          "TF_VAR_tags_Environment"
-          "TF_VAR_tags_ManagedBy"
-          "TF_VAR_tags_Owner"
-          "TF_VAR_tags_CostCenter"
+          "TF_VAR_tags"
           "TF_VAR_spn_client_id"
           "TF_VAR_spn_client_secret"
           "TF_VAR_spn_tenant_id"
