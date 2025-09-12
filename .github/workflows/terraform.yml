@@ -132,45 +132,22 @@ jobs:
           working-directory: './terraform'
           environment: ${{ github.event.inputs.environment }}
 
-      - name: Debug Environment Variables
-        shell: bash
-        working-directory: './terraform'
-        run: |
-          echo "=== Debug: Environment Variables ==="
-          echo "TF_VAR_subscription_id: $TF_VAR_subscription_id"
-          echo "TF_VAR_project_name: $TF_VAR_project_name"
-          echo "TF_VAR_environment: $TF_VAR_environment"
-          echo "TF_VAR_location: $TF_VAR_location"
-          echo "TF_VAR_storage_config: $TF_VAR_storage_config"
-          echo "TF_VAR_cognitive_services_config: $TF_VAR_cognitive_services_config"
-          echo "TF_VAR_function_app_config: $TF_VAR_function_app_config"
-          echo "TF_VAR_tags: $TF_VAR_tags"
-          echo "ARM_CLIENT_ID: $ARM_CLIENT_ID"
-          echo "ARM_TENANT_ID: $ARM_TENANT_ID"
-          echo "ARM_SUBSCRIPTION_ID: $ARM_SUBSCRIPTION_ID"
-          echo "=== End Debug ==="
-
       - name: Terraform Plan
         shell: bash
         working-directory: './terraform'
         run: |
           echo "Creating Terraform plan..."
-          terraform plan -input=false -out=tfplan
+          terraform plan -input=false
           echo "SUCCESS: Terraform plan created successfully"
-
-      - name: Terraform Plan Output
-        shell: bash
-        working-directory: './terraform'
-        run: |
-          echo "Terraform Plan Summary:"
-          terraform show -no-color tfplan
 
       - name: Terraform Apply
         shell: bash
         working-directory: './terraform'
         run: |
           echo "Applying Terraform changes..."
-          terraform apply -input=false -auto-approve tfplan
+          # Remove any existing plan file to avoid variable format conflicts
+          rm -f tfplan
+          terraform apply -input=false -auto-approve
           echo "SUCCESS: Terraform apply completed successfully"
 
       - name: Terraform Output
