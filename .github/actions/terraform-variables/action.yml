@@ -73,34 +73,32 @@ runs:
         echo "TF_VAR_max_retries=${{ inputs.max-retries }}" >> $GITHUB_ENV
         
         # Create environment-specific tfvars file for complex objects
-        cat > ./terraform-${{ inputs.environment }}.tfvars << EOF
-# Storage configuration
-storage_config = {
-  tier              = "${{ inputs.storage-tier }}"
-  replication_type  = "${{ inputs.storage-replication-type }}"
-  enable_versioning = ${{ inputs.storage-enable-versioning }}
-}
-
-# Cognitive Services configuration
-cognitive_services_config = {
-  sku_name = "${{ inputs.cognitive-services-sku }}"
-}
-
-# Function App configuration
-function_app_config = {
-  sku_tier = "${{ inputs.function-app-sku-tier }}"
-  sku_size = "${{ inputs.function-app-sku-size }}"
-}
-
-# Resource tags
-tags = {
-  Project     = "${{ inputs.tags-project }}"
-  Environment = "${{ inputs.environment }}"
-  ManagedBy   = "${{ inputs.tags-managed-by }}"
-  Owner       = "${{ inputs.tags-owner }}"
-  CostCenter  = "${{ inputs.tags-cost-center }}"
-}
-EOF
+        printf '# Storage configuration\n' > ./terraform-${{ inputs.environment }}.tfvars
+        printf 'storage_config = {\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  tier              = "%s"\n' "${{ inputs.storage-tier }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  replication_type  = "%s"\n' "${{ inputs.storage-replication-type }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  enable_versioning = %s\n' "${{ inputs.storage-enable-versioning }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '}\n\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        
+        printf '# Cognitive Services configuration\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf 'cognitive_services_config = {\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  sku_name = "%s"\n' "${{ inputs.cognitive-services-sku }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '}\n\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        
+        printf '# Function App configuration\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf 'function_app_config = {\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  sku_tier = "%s"\n' "${{ inputs.function-app-sku-tier }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  sku_size = "%s"\n' "${{ inputs.function-app-sku-size }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '}\n\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        
+        printf '# Resource tags\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf 'tags = {\n' >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  Project     = "%s"\n' "${{ inputs.tags-project }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  Environment = "%s"\n' "${{ inputs.environment }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  ManagedBy   = "%s"\n' "${{ inputs.tags-managed-by }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  Owner       = "%s"\n' "${{ inputs.tags-owner }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '  CostCenter  = "%s"\n' "${{ inputs.tags-cost-center }}" >> ./terraform-${{ inputs.environment }}.tfvars
+        printf '}\n' >> ./terraform-${{ inputs.environment }}.tfvars
         
         # Set the environment-specific tfvars file path as an environment variable
         echo "TFVARS_FILE=./terraform-${{ inputs.environment }}.tfvars" >> $GITHUB_ENV
