@@ -38,6 +38,12 @@ runs:
         # Use environment-specific state file key
         BACKEND_ARGS+=("-backend-config=key=terraform-${{ inputs.environment }}.tfstate")
         
+        echo "Backend configuration:"
+        echo "  Resource Group: $(echo '${{ inputs.backend-config }}' | jq -r '.resource_group_name')"
+        echo "  Storage Account: $(echo '${{ inputs.backend-config }}' | jq -r '.storage_account_name')"
+        echo "  Container: $(echo '${{ inputs.backend-config }}' | jq -r '.container_name')"
+        echo "  State Key: terraform-${{ inputs.environment }}.tfstate"
+        
         terraform init -input=false "${BACKEND_ARGS[@]}"
         echo "SUCCESS: Terraform initialized successfully"
 

@@ -69,6 +69,11 @@ output "github_actions_spn_object_id" {
   value       = azuread_service_principal.github_actions.object_id
 }
 
+output "github_actions_app_admin_role_assigned" {
+  description = "Whether Application Administrator role was assigned to GitHub Actions SPN"
+  value       = azuread_directory_role_assignment.github_actions_app_admin.id
+}
+
 
 # =============================================================================
 # TERRAFORM BACKEND CONFIGURATION

@@ -122,6 +122,13 @@ resource "azurerm_role_assignment" "github_actions_user_access_admin" {
   principal_id         = azuread_service_principal.github_actions.object_id
 }
 
+# Application Administrator role for Azure AD operations
+# This allows the SPN to create Azure AD applications and service principals
+resource "azuread_directory_role_assignment" "github_actions_app_admin" {
+  role_id             = "9b895d92-2cd3-44c7-9d02-a6ac2d5ea5c3" # Application Administrator
+  principal_object_id = azuread_service_principal.github_actions.object_id
+}
+
 # Storage Blob Data Contributor for state management
 resource "azurerm_role_assignment" "github_actions_storage" {
   scope                = azurerm_storage_account.terraform_state.id

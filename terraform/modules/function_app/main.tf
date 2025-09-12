@@ -19,8 +19,9 @@ resource "azurerm_windows_function_app" "main" {
   resource_group_name = var.resource_group_name
   location            = var.location
 
-  storage_account_name = var.storage_account_name
-  service_plan_id      = azurerm_service_plan.main.id
+  storage_account_name       = var.storage_account_name
+  storage_account_access_key = var.storage_account_access_key
+  service_plan_id            = azurerm_service_plan.main.id
 
   site_config {
     application_stack {

@@ -29,6 +29,12 @@ variable "storage_connection_string" {
   sensitive   = true
 }
 
+variable "storage_account_access_key" {
+  description = "Storage account access key for Function App storage"
+  type        = string
+  sensitive   = true
+}
+
 variable "sku_tier" {
   description = "SKU tier for the Function App"
   type        = string

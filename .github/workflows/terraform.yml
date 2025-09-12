@@ -145,8 +145,6 @@ jobs:
         working-directory: './terraform'
         run: |
           echo "Applying Terraform changes..."
-          # Remove any existing plan file to avoid variable format conflicts
-          rm -f tfplan
           terraform apply -input=false -auto-approve
           echo "SUCCESS: Terraform apply completed successfully"
 

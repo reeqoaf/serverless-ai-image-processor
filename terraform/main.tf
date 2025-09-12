@@ -106,6 +106,7 @@ module "function_app" {
   location                   = azurerm_resource_group.main.location
   storage_account_name       = module.storage.storage_account_name
   storage_connection_string  = module.storage.storage_account_primary_connection_string
+  storage_account_access_key = module.storage.storage_account_primary_access_key
   sku_tier                   = var.function_app_config.sku_tier
   sku_size                   = var.function_app_config.sku_size
   cosmosdb_connection_string = module.cosmosdb.cosmosdb_connection_string
