@@ -1,6 +1,6 @@
 # Serverless AI Image Processor
 
-Event-driven image processing pipeline using Azure services with Infrastructure as Code.
+Cloud-native image processing service leveraging Azure Computer Vision API, CosmosDB, and serverless architecture. Built with .NET 9, Terraform IaC, and GitHub Actions CI/CD. Implements event-driven processing, automated scaling, and enterprise security patterns.
 
 ## Architecture
 
