@@ -1,68 +1,61 @@
-using Microsoft.Azure.CognitiveServices.Vision.ComputerVision;
+using AiImageProcessor.Configuration;
 using Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models;
 using AiImageProcessor.Database.Entities;
 using AiImageProcessor.Services.Abstractions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 
 namespace AiImageProcessor.Services;
 
-public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionClient, ILogger<ComputerVisionAnalysisService> logger) : IImageAnalysisService
+public class ComputerVisionAnalysisService(
+    IComputerVisionWrapper wrapper,
+    IOptions<ApplicationSettings> settings,
+    ILogger<ComputerVisionAnalysisService> logger) : IImageAnalysisService
 {
-    private readonly ComputerVisionClient _computerVisionClient = computerVisionClient ?? throw new ArgumentNullException(nameof(computerVisionClient));
+    private readonly IComputerVisionWrapper _wrapper = wrapper ?? throw new ArgumentNullException(nameof(wrapper));
     private readonly ILogger<ComputerVisionAnalysisService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    private readonly AsyncRetryPolicy _retryPolicy = Policy
+        .Handle<ComputerVisionErrorResponseException>()
+        .WaitAndRetryAsync(
+            settings.Value.MaxRetries,
+            attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
+
+    private static readonly IList<VisualFeatureTypes?> Features =
+    [
+        VisualFeatureTypes.Objects,
+        VisualFeatureTypes.Tags,
+        VisualFeatureTypes.Description,
+        VisualFeatureTypes.Faces,
+        VisualFeatureTypes.Color,
+        VisualFeatureTypes.Adult,
+    ];
 
     public async Task<ImageAnalysisResult> AnalyzeImageAsync(Stream imageStream, string fileName)
     {
         try
         {
             _logger.LogInformation("Starting image analysis for {FileName}", fileName);
-            _logger.LogInformation("Computer Vision Endpoint: {Endpoint}", _computerVisionClient.Endpoint);
 
-            // Reset stream position
             imageStream.Position = 0;
+            var analysis = await _retryPolicy.ExecuteAsync(() =>
+                _wrapper.AnalyzeImageInStreamAsync(imageStream, Features));
 
-            // Analyze image with multiple features
-            var features = new List<VisualFeatureTypes?>
-            {
-                VisualFeatureTypes.Objects,
-                VisualFeatureTypes.Tags,
-                VisualFeatureTypes.Description,
-                VisualFeatureTypes.Faces,
-                VisualFeatureTypes.Color,
-                VisualFeatureTypes.Adult
-            };
-
-            var analysis = await _computerVisionClient.AnalyzeImageInStreamAsync(imageStream, features);
-
-            // Extract text using OCR
-            OcrResult? ocrResult = null;
-            if (imageStream.CanSeek)
-            {
-                imageStream.Position = 0;
-                try
-                {
-                    ocrResult = await _computerVisionClient.RecognizePrintedTextInStreamAsync(true, imageStream);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "OCR failed for {FileName}, continuing without text extraction", fileName);
-                }
-            }
-            else
-            {
-                _logger.LogWarning("Stream does not support seeking, skipping OCR for {FileName}", fileName);
-            }
+            imageStream.Position = 0;
+            var text = await ExtractTextViaReadApiAsync(imageStream, fileName);
 
             var result = new ImageAnalysisResult
             {
-                Description = analysis.Description?.Captions?.FirstOrDefault()?.Text ?? "No description available",
-                Tags = analysis.Tags?.Select(t => t.Name).ToList() ?? new List<string>(),
-                Objects = MapDetectedObjects(analysis.Objects),
-                Faces = MapDetectedFaces(analysis.Faces),
-                Text = ocrResult != null ? ExtractTextFromOcr(ocrResult) : new List<string>(), // Handle null OCR result
-                Colors = MapColorAnalysis(analysis.Color),
+                Description  = analysis.Description?.Captions?.FirstOrDefault()?.Text ?? "No description available",
+                Tags         = analysis.Tags?.Select(t => t.Name).ToList() ?? [],
+                Objects      = MapDetectedObjects(analysis.Objects),
+                Faces        = MapDetectedFaces(analysis.Faces),
+                Text         = text,
+                Colors       = MapColorAnalysis(analysis.Color),
                 AdultContent = MapAdultContent(analysis.Adult),
-                ImageType = DetermineImageType(analysis)
+                ImageType    = DetermineImageType(analysis),
+                Dimensions   = $"{analysis.Metadata?.Width ?? 0}x{analysis.Metadata?.Height ?? 0}",
             };
 
             _logger.LogInformation("Image analysis completed for {FileName}", fileName);
@@ -75,68 +68,94 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         }
     }
 
+    private async Task<List<string>> ExtractTextViaReadApiAsync(Stream imageStream, string fileName)
+    {
+        try
+        {
+            var headers = await _wrapper.ReadInStreamAsync(imageStream);
+
+            // Operation-Location header format: .../read/analyzeResults/{operationId}
+            var operationUrl = headers.OperationLocation;
+            if (string.IsNullOrEmpty(operationUrl) || !Guid.TryParse(operationUrl.Split('/').Last(), out var operationId))
+            {
+                _logger.LogWarning("Could not parse Read API operation ID from URL for {FileName}", fileName);
+                return [];
+            }
+
+            const int maxAttempts = 60;
+            const int delayMs = 500;
+
+            for (var attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                await Task.Delay(delayMs);
+                var result = await _wrapper.GetReadResultAsync(operationId);
+
+                if (result.Status == OperationStatusCodes.Succeeded)
+                    return ExtractLinesFromReadResult(result);
+
+                if (result.Status == OperationStatusCodes.Failed)
+                {
+                    _logger.LogWarning("Read API operation failed for {FileName}", fileName);
+                    return [];
+                }
+            }
+
+            _logger.LogWarning("Read API timed out for {FileName}", fileName);
+            return [];
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OCR (Read API) failed for {FileName}, continuing without text extraction", fileName);
+            return [];
+        }
+    }
+
+    private static List<string> ExtractLinesFromReadResult(ReadOperationResult result)
+    {
+        if (result.AnalyzeResult?.ReadResults == null) return [];
+
+        return result.AnalyzeResult.ReadResults
+            .SelectMany(r => r.Lines ?? [])
+            .Select(l => l.Text)
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .ToList();
+    }
+
     private static List<Database.Entities.DetectedObject> MapDetectedObjects(IList<Microsoft.Azure.CognitiveServices.Vision.ComputerVision.Models.DetectedObject>? objects)
     {
-        if (objects == null) return new List<Database.Entities.DetectedObject>();
+        if (objects == null) return [];
 
         return objects.Select(obj => new Database.Entities.DetectedObject
         {
-            Name = obj.ObjectProperty ?? "Unknown",
+            Name       = obj.ObjectProperty ?? "Unknown",
             Confidence = obj.Confidence,
             BoundingBox = obj.Rectangle != null ? new BoundingBox
             {
-                X = obj.Rectangle.X,
-                Y = obj.Rectangle.Y,
-                Width = obj.Rectangle.W,
-                Height = obj.Rectangle.H
-            } : null
+                X      = obj.Rectangle.X,
+                Y      = obj.Rectangle.Y,
+                Width  = obj.Rectangle.W,
+                Height = obj.Rectangle.H,
+            } : null,
         }).ToList();
     }
 
     private static List<DetectedFace> MapDetectedFaces(IList<FaceDescription>? faces)
     {
-        if (faces == null) return new List<DetectedFace>();
+        if (faces == null) return [];
 
         return faces.Select(face => new DetectedFace
         {
-            Age = face.Age,
+            Age    = face.Age,
             Gender = face.Gender?.ToString() ?? "Unknown",
-            Emotion = "Unknown", // Emotion detection not available in current Computer Vision API
-            Confidence = 0.9, // Default confidence
+            Emotion = "Unknown",
             BoundingBox = face.FaceRectangle != null ? new BoundingBox
             {
-                X = face.FaceRectangle.Left,
-                Y = face.FaceRectangle.Top,
-                Width = face.FaceRectangle.Width,
-                Height = face.FaceRectangle.Height
-            } : null
+                X      = face.FaceRectangle.Left,
+                Y      = face.FaceRectangle.Top,
+                Width  = face.FaceRectangle.Width,
+                Height = face.FaceRectangle.Height,
+            } : null,
         }).ToList();
-    }
-
-    private static List<string> ExtractTextFromOcr(OcrResult? ocrResult)
-    {
-        if (ocrResult?.Regions == null) return new List<string>();
-
-        var textLines = new List<string>();
-        foreach (var region in ocrResult.Regions)
-        {
-            if (region.Lines != null)
-            {
-                foreach (var line in region.Lines)
-                {
-                    if (line.Words != null)
-                    {
-                        var lineText = string.Join(" ", line.Words.Select(w => w.Text));
-                        if (!string.IsNullOrWhiteSpace(lineText))
-                        {
-                            textLines.Add(lineText);
-                        }
-                    }
-                }
-            }
-        }
-
-        return textLines;
     }
 
     private static ColorAnalysis MapColorAnalysis(ColorInfo? colorInfo)
@@ -145,9 +164,9 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
 
         return new ColorAnalysis
         {
-            Dominant = colorInfo.DominantColorForeground ?? "#000000",
-            Accent = colorInfo.DominantColorBackground ?? "#FFFFFF",
-            IsBlackAndWhite = colorInfo.IsBWImg
+            Dominant        = colorInfo.DominantColorForeground ?? "#000000",
+            Accent          = colorInfo.DominantColorBackground ?? "#FFFFFF",
+            IsBlackAndWhite = colorInfo.IsBWImg,
         };
     }
 
@@ -158,11 +177,10 @@ public class ComputerVisionAnalysisService(ComputerVisionClient computerVisionCl
         return new AdultContentAnalysis
         {
             IsAdultContent = adultInfo.IsAdultContent,
-            AdultScore = adultInfo.AdultScore,
-            RacyScore = adultInfo.RacyScore
+            AdultScore     = adultInfo.AdultScore,
+            RacyScore      = adultInfo.RacyScore,
         };
     }
-
 
     private static string DetermineImageType(ImageAnalysis analysis)
     {

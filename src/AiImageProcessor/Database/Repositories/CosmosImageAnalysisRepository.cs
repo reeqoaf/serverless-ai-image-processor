@@ -1,38 +1,71 @@
-using Microsoft.Azure.Cosmos;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using AiImageProcessor.Configuration;
 using AiImageProcessor.Database.Entities;
 using AiImageProcessor.Database.Repositories.Abstractions;
+using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Polly;
+using Polly.Retry;
 
 namespace AiImageProcessor.Database.Repositories;
 
-public class CosmosImageAnalysisRepository(CosmosClient cosmosClient, ILogger<IImageAnalysisRepository> logger) : IImageAnalysisRepository
+public class CosmosImageAnalysisRepository : IImageAnalysisRepository
 {
     private const string DatabaseName = "ImageAnalysis";
     private const string ContainerName = "Images";
 
-    private readonly ILogger<IImageAnalysisRepository> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    private readonly Container _container = cosmosClient.GetDatabase(DatabaseName).GetContainer(ContainerName);
+    private readonly Container _container;
+    private readonly ILogger<CosmosImageAnalysisRepository> _logger;
+    private readonly AsyncRetryPolicy _retryPolicy;
 
-    public async Task<ImageAnalysisDocument> StoreAnalysisAsync(string fileName, ImageAnalysisResult analysis, ImageMetadata metadata, StorageInfo storage)
+    public CosmosImageAnalysisRepository(
+        CosmosClient cosmosClient,
+        IOptions<ApplicationSettings> settings,
+        ILogger<CosmosImageAnalysisRepository> logger)
+    {
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _container = cosmosClient.GetDatabase(DatabaseName).GetContainer(ContainerName);
+        _retryPolicy = BuildRetryPolicy(settings.Value.MaxRetries);
+    }
+
+    internal CosmosImageAnalysisRepository(
+        Container container,
+        IOptions<ApplicationSettings> settings,
+        ILogger<CosmosImageAnalysisRepository> logger)
+    {
+        _container = container ?? throw new ArgumentNullException(nameof(container));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _retryPolicy = BuildRetryPolicy(settings.Value.MaxRetries);
+    }
+
+    public async Task<ImageAnalysisDocument> StoreAnalysisAsync(
+        string fileName,
+        ImageAnalysisResult analysis,
+        ImageMetadata metadata,
+        StorageInfo storage)
     {
         try
         {
-            var documentId = GenerateDocumentId(fileName);
-            var partitionKey = GetPartitionKeyFromId(documentId);
+            var documentId   = GenerateDocumentId(fileName);
+            var partitionKey = GetPartitionKey(documentId);
 
             var document = new ImageAnalysisDocument
             {
-                Id = documentId,
+                Id           = documentId,
                 PartitionKey = partitionKey,
-                FileName = fileName,
-                Analysis = analysis,
-                Metadata = metadata,
-                Storage = storage,
-                ProcessedAt = DateTime.UtcNow,
-                Status = "Completed"
+                FileName     = fileName,
+                Analysis     = analysis,
+                Metadata     = metadata,
+                Storage      = storage,
+                ProcessedAt  = DateTime.UtcNow,
+                Status       = "Completed",
             };
 
-            var response = await _container.CreateItemAsync(document, new PartitionKey(document.PartitionKey));
+            var response = await _retryPolicy.ExecuteAsync(() =>
+                _container.UpsertItemAsync(document, new PartitionKey(partitionKey)));
 
             _logger.LogInformation("Stored analysis for {FileName} with ID {DocumentId}", fileName, document.Id);
 
@@ -49,10 +82,11 @@ public class CosmosImageAnalysisRepository(CosmosClient cosmosClient, ILogger<II
     {
         try
         {
-            var response = await _container.ReadItemAsync<ImageAnalysisDocument>(id, new PartitionKey(GetPartitionKeyFromId(id)));
+            var response = await _container.ReadItemAsync<ImageAnalysisDocument>(
+                id, new PartitionKey(GetPartitionKey(id)));
             return response.Resource;
         }
-        catch (CosmosException ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
             return null;
         }
@@ -63,17 +97,19 @@ public class CosmosImageAnalysisRepository(CosmosClient cosmosClient, ILogger<II
         }
     }
 
-    private static string GenerateDocumentId(string fileName)
+    internal static string GenerateDocumentId(string fileName)
     {
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss");
-        var sanitizedFileName = Path.GetFileNameWithoutExtension(fileName).Replace(" ", "_");
-        return $"{sanitizedFileName}_{timestamp}";
+        var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(fileName.ToLowerInvariant())));
+        return hash[..32];
     }
 
-    private static string GetPartitionKeyFromId(string id)
-    {
-        // Extract date from ID for partitioning
-        var datePart = id.Split('_').LastOrDefault()?.Substring(0, 8) ?? DateTime.UtcNow.ToString("yyyyMMdd");
-        return DateTime.ParseExact(datePart, "yyyyMMdd", null).ToString("yyyy-MM-dd");
-    }
+    internal static string GetPartitionKey(string documentId)
+        => documentId[..2];
+
+    private static AsyncRetryPolicy BuildRetryPolicy(int maxRetries) =>
+        Policy
+            .Handle<CosmosException>(e => (int)e.StatusCode >= 500)
+            .WaitAndRetryAsync(
+                maxRetries,
+                attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt)));
 }

@@ -27,6 +27,9 @@ public class ImageAnalysisResult
 
     [JsonProperty("imageType")]
     public string ImageType { get; set; } = string.Empty;
+
+    [JsonProperty("dimensions")]
+    public string Dimensions { get; set; } = string.Empty;
 }
 
 public class DetectedObject
@@ -52,8 +55,8 @@ public class DetectedFace
     [JsonProperty("emotion")]
     public string Emotion { get; set; } = string.Empty;
 
-    [JsonProperty("confidence")]
-    public double Confidence { get; set; }
+    [JsonProperty("confidence", NullValueHandling = NullValueHandling.Ignore)]
+    public double? Confidence { get; set; }
 
     [JsonProperty("boundingBox")]
     public BoundingBox? BoundingBox { get; set; }
