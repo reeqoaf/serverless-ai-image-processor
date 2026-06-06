@@ -10,9 +10,11 @@ on:
         type: choice
         options:
           - dev
+          - staging
+          - prod
 
 env:
-  TF_VERSION: '1.10.0'
+  TF_VERSION: '1.11.0'
   AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
   TF_BACKEND_CONFIG: ${{ secrets.TF_BACKEND_CONFIG }}
 
@@ -33,7 +35,7 @@ jobs:
       - name: Validate Environment
         run: |
           case "${{ github.event.inputs.environment }}" in
-            dev) ;;
+            dev|staging|prod) ;;
             *) echo "ERROR: Invalid environment: ${{ github.event.inputs.environment }}"; exit 1 ;;
           esac
 

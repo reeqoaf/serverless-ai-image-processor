@@ -10,9 +10,11 @@ on:
         type: choice
         options:
           - dev
+          - staging
+          - prod
 
 env:
-  DOTNET_VERSION: '9.0.x'
+  DOTNET_VERSION: '10.0.x'
 
 jobs:
   deploy-function:
@@ -40,14 +42,25 @@ jobs:
 
       - name: Restore dependencies
         shell: bash
-        working-directory: './src/AiImageProcessor'
-        run: dotnet restore
+        working-directory: './src'
+        run: dotnet restore AiImageProcessor.sln
 
-      - name: Build function app
+      - name: Build solution
         shell: bash
-        working-directory: './src/AiImageProcessor'
-        run: |
-          dotnet build --configuration Release --no-restore
+        working-directory: './src'
+        run: dotnet build AiImageProcessor.sln --configuration Release --no-restore
+
+      - name: Run tests
+        shell: bash
+        working-directory: './src'
+        run: dotnet test AiImageProcessor.sln --configuration Release --no-build --logger "trx;LogFileName=test-results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
 
       - name: Publish function app
         shell: bash

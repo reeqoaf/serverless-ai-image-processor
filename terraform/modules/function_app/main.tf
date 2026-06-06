@@ -8,13 +8,13 @@ resource "azurerm_service_plan" "main" {
   name                = "${var.project_name}-${var.environment}-plan-${random_string.suffix.result}"
   resource_group_name = var.resource_group_name
   location            = var.location
-  os_type             = "Windows"
+  os_type             = "Linux"
   sku_name            = var.sku_tier == "Consumption" ? "Y1" : "${var.sku_tier}_${var.sku_size}"
 
   tags = var.tags
 }
 
-resource "azurerm_windows_function_app" "main" {
+resource "azurerm_linux_function_app" "main" {
   name                = "${var.project_name}-${var.environment}-func-${random_string.suffix.result}"
   resource_group_name = var.resource_group_name
   location            = var.location
@@ -25,7 +25,8 @@ resource "azurerm_windows_function_app" "main" {
 
   site_config {
     application_stack {
-      dotnet_version = "v9.0"
+      dotnet_version              = "v10.0"
+      use_dotnet_isolated_runtime = true
     }
   }
 

@@ -1,9 +1,9 @@
+using System.Diagnostics;
 using Azure.Storage.Blobs;
 using AiImageProcessor.Database.Entities;
 using AiImageProcessor.Database.Repositories.Abstractions;
 using AiImageProcessor.Services.Abstractions;
 using Microsoft.Extensions.Logging;
-using System.Linq;
 
 namespace AiImageProcessor.Services;
 
@@ -20,7 +20,9 @@ public class ImageProcessingService(
 
     public async Task ProcessImageAsync(Stream imageStream, string fileName)
     {
-        var startTime = DateTime.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
+        var fileSize = imageStream.Length;
+
         var imagesContainer = _blobServiceClient.GetBlobContainerClient("images");
         var blobClient = imagesContainer.GetBlobClient(fileName);
 
@@ -28,42 +30,43 @@ public class ImageProcessingService(
         {
             _logger.LogInformation("Starting image processing for {FileName}", fileName);
 
-            // Analyze image
             var analysisResult = await _imageAnalysisService.AnalyzeImageAsync(imageStream, fileName);
 
-            // Create metadata
+            var blobProperties = await blobClient.GetPropertiesAsync();
+
             var metadata = new ImageMetadata
             {
-                FileSize = imageStream.Length,
-                Format = Path.GetExtension(fileName).TrimStart('.'),
-                Dimensions = "Unknown", // Image dimensions not available from current analysis
-                RetryCount = 0,
-                ProcessingTimeMs = (long)(DateTime.UtcNow - startTime).TotalMilliseconds,
-                AiServiceUsed = "ComputerVision",
-                Version = "1.0"
+                FileSize        = fileSize,
+                Format          = Path.GetExtension(fileName).TrimStart('.'),
+                Dimensions      = analysisResult.Dimensions,
+                RetryCount      = 0,
+                AiServiceUsed   = "ComputerVision",
+                Version         = "1.0",
             };
 
-            // Create storage info
             var storageInfo = new StorageInfo
             {
                 Container = "images",
-                BlobName = fileName,
-                Url = blobClient.Uri.ToString(),
-                ETag = (await blobClient.GetPropertiesAsync()).Value.ETag.ToString()
+                BlobName  = fileName,
+                Url       = blobClient.Uri.ToString(),
+                ETag      = blobProperties.Value.ETag.ToString(),
             };
 
-            // Store in database
             var document = await _imageAnalysisRepository.StoreAnalysisAsync(fileName, analysisResult, metadata, storageInfo);
-            _logger.LogInformation("Stored analysis in database with ID: {DocumentId}", document.Id);
 
-            // Update blob metadata
             await UpdateBlobMetadataAsync(blobClient, "completed");
 
-            _logger.LogInformation("Image processing completed for: {FileName}", fileName);
+            stopwatch.Stop();
+            metadata.ProcessingTimeMs = stopwatch.ElapsedMilliseconds;
+
+            _logger.LogInformation(
+                "Image processing completed for {FileName} in {ElapsedMs}ms (doc: {DocumentId})",
+                fileName, stopwatch.ElapsedMilliseconds, document.Id);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing image {FileName}", fileName);
+            stopwatch.Stop();
+            _logger.LogError(ex, "Error processing image {FileName} after {ElapsedMs}ms", fileName, stopwatch.ElapsedMilliseconds);
             await UpdateBlobMetadataAsync(blobClient, "failed", ex.Message);
             throw;
         }
@@ -75,18 +78,14 @@ public class ImageProcessingService(
         {
             var metadata = new Dictionary<string, string>
             {
-                ["processed"] = status == "completed" ? "true" : "false",
-                ["processed_at"] = DateTime.UtcNow.ToString("O"),
-                ["processed_by"] = "AI-Image-Processor",
-                ["processing_status"] = status
+                ["processed"]          = status == "completed" ? "true" : "false",
+                ["processed_at"]       = DateTime.UtcNow.ToString("O"),
+                ["processed_by"]       = "AI-Image-Processor",
+                ["processing_status"]  = status,
             };
 
             if (!string.IsNullOrEmpty(errorMessage))
-            {
-                // Sanitize error message for metadata (remove invalid characters)
-                var sanitizedError = SanitizeMetadataValue(errorMessage);
-                metadata["error_message"] = sanitizedError;
-            }
+                metadata["error_message"] = SanitizeMetadataValue(errorMessage);
 
             await blobClient.SetMetadataAsync(metadata);
         }
@@ -101,7 +100,6 @@ public class ImageProcessingService(
         if (string.IsNullOrEmpty(value))
             return string.Empty;
 
-        // Remove control characters and other invalid characters for Azure Storage metadata
         return new string(value.Where(c => !char.IsControl(c) && c != '\0').ToArray());
     }
 }
